@@ -11,9 +11,13 @@ Tempo estimado: 20 minutos.
 > | Banco Firestore | criado em **southamerica-east1 (São Paulo)**, modo nativo |
 > | Regras de segurança | publicadas a partir do `firestore.rules` |
 > | Credenciais | já coladas no bloco `FIREBASE_CONFIG` do `public/index.html` |
-> | Login e-mail/senha | **pendente** — passo 2 (só dá para ativar no console) |
-> | Render | **pendente** — passo 6 |
-> | Contas e PINs | **pendente** — passo 7 |
+> | Login e-mail/senha | ativado e testado |
+> | Contas e PINs | as três contas existem; `pinMap/map` e `authSetupDone/done` gravados |
+> | Render | **pendente** — passo 6, único item que falta |
+>
+> Testes já feitos contra este projeto: sem login o Firestore recusa ler e escrever
+> em `logisticaData` (403); com login, lê e escreve normalmente. O botão
+> **Configurar contas** não aparece mais, porque o `pinMap` já existe.
 >
 > Nenhum outro projeto Firebase da conta foi tocado. Todo comando do CLI usa
 > `--project logicalendar-adt`, e o `.firebaserc` fixa esse projeto para esta pasta.
