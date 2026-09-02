@@ -1394,10 +1394,26 @@ CHG['toggle-task'] = el => toggleTask(el.dataset.id, el.dataset.task, el.checked
  * está; senão, o da cidade cadastrada. Geocodificação fica em cache pra
  * sempre (não muda) e a previsão por 30 min, por coordenada.
  * ===================================================================== */
+/* O Open-Meteo às vezes segura a conexão e devolve 200 com um texto no lugar do
+ * JSON ("Unexpected error while streaming data"). Sem corte de tempo, o banner
+ * ficava em "carregando…" para sempre — por isso o AbortController e o parse
+ * defensivo: qualquer resposta estranha vira um erro tratável. */
+async function getJson(url, ms = 12000) {
+  const ac = new AbortController(), t = setTimeout(() => ac.abort(), ms);
+  try {
+    const r = await fetch(url, { signal: ac.signal });
+    const txt = await r.text();
+    if (r.status === 429) throw new Error('muitas consultas seguidas, tente daqui a pouco');
+    if (!r.ok) throw new Error(`serviço fora do ar (${r.status})`);
+    try { return JSON.parse(txt); } catch (e) { throw new Error('resposta inválida do serviço'); }
+  } catch (e) {
+    throw (e && e.name === 'AbortError') ? new Error('demorou demais') : e;
+  } finally { clearTimeout(t); }
+}
 async function geocode(city, uf = UF_OPERACAO) {
   const ck = 'lg_geo_' + norm(city) + '_' + norm(uf), hit = lsGet(ck, null); if (hit) return JSON.parse(hit);
-  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=10&language=pt&format=json`);
-  const j = await r.json(); const rs = j.results || [];
+  const j = await getJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=10&language=pt&format=json`);
+  const rs = j.results || [];
   // sem filtro, "São Sebastião" cai na Espanha e "Penedo" no Rio de Janeiro
   const g = rs.find(x => x.country_code === 'BR' && norm(x.admin1 || '').includes(norm(uf)))
          || rs.find(x => x.country_code === 'BR') || rs[0];
@@ -1407,15 +1423,23 @@ async function geocode(city, uf = UF_OPERACAO) {
   lsSet(ck, JSON.stringify(out)); return out;
 }
 async function fetchWeatherAt(lat, lon, name, admin) {
-  const ck = `lg_wx_${lat.toFixed(2)}_${lon.toFixed(2)}`, hit = lsGet(ck, null);
-  if (hit) { try { const j = JSON.parse(hit); if (Date.now() - j.at < 30 * 60e3) return { ...j, city: name || j.city, admin: admin || j.admin }; } catch (e) {} }
+  const ck = `lg_wx_${lat.toFixed(2)}_${lon.toFixed(2)}`;
+  let cache = null; try { cache = JSON.parse(lsGet(ck, 'null')); } catch (e) {}
+  const rotular = w => ({ ...w, city: name || w.city, admin: admin || w.admin });
+  if (cache && Date.now() - cache.at < 30 * 60e3) return rotular(cache);
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=5`;
-  const r = await fetch(url); const j = await r.json();
-  if (!j.current) throw new Error('resposta inesperada');
-  const out = { at: Date.now(), city: name || 'Sua localização', admin: admin || '',
-    current: { temp: Math.round(j.current.temperature_2m), code: j.current.weather_code, wind: Math.round(j.current.wind_speed_10m), hum: j.current.relative_humidity_2m },
-    daily: j.daily.time.map((d, i) => ({ date: d, code: j.daily.weather_code[i], max: Math.round(j.daily.temperature_2m_max[i]), min: Math.round(j.daily.temperature_2m_min[i]), pop: j.daily.precipitation_probability_max[i] })) };
-  lsSet(ck, JSON.stringify(out)); return out;
+  try {
+    const j = await getJson(url);
+    if (!j.current || !j.daily) throw new Error('resposta incompleta');
+    const out = { at: Date.now(), city: name || 'Sua localização', admin: admin || '',
+      current: { temp: Math.round(j.current.temperature_2m), code: j.current.weather_code, wind: Math.round(j.current.wind_speed_10m), hum: j.current.relative_humidity_2m },
+      daily: j.daily.time.map((d, i) => ({ date: d, code: j.daily.weather_code[i], max: Math.round(j.daily.temperature_2m_max[i]), min: Math.round(j.daily.temperature_2m_min[i]), pop: j.daily.precipitation_probability_max[i] })) };
+    lsSet(ck, JSON.stringify(out)); return out;
+  } catch (e) {
+    // serviço fora do ar: uma leitura velha ainda ajuda mais que "indisponível"
+    if (cache) return { ...rotular(cache), velho: true };
+    throw e;
+  }
 }
 async function fetchWeather(city, uf) { const g = await geocode(city, uf); return fetchWeatherAt(g.lat, g.lon, g.name, g.admin); }
 const wmo = code => WMO[code] || ['🌡️', 'Tempo'];
@@ -1434,7 +1458,7 @@ function pedirLocalizacao(manual = false) {
       lsSet('lg_geo_negada', '0');
       try {
         // nome da cidade onde a pessoa está; se falhar, o clima continua funcionando pelas coordenadas
-        const j = await (await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=pt`)).json();
+        const j = await getJson(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=pt`, 8000);
         const adm = (j.localityInfo && j.localityInfo.administrative) || [];
         const municipio = adm.filter(a => a.adminLevel === 8).map(a => a.name)[0];
         ui.geo.name = municipio || j.locality || j.city || 'Sua localização';
@@ -1477,7 +1501,7 @@ async function loadWeather() {
     if (meu !== wxSeq) return;   // uma busca mais nova já respondeu: esta ficou velha
     const [ico, lbl] = wmo(w.current.code);
     $('#wx-ico').textContent = ico;
-    el.textContent = `${w.current.temp}°C · ${lbl} · ${geo ? '📍 ' : ''}${w.city}`;
+    el.textContent = `${w.current.temp}°C · ${lbl} · ${geo ? '📍 ' : ''}${w.city}${w.velho ? ' (última leitura)' : ''}`;
   } catch (e) { if (meu === wxSeq) el.textContent = 'clima indisponível'; }
 }
 
@@ -2319,21 +2343,26 @@ function cidadesDoClima() {
   return [...CIDADES_OPERACAO, ...new Set(extras)];
 }
 async function paintWeather(body) {
-  const cards = [];
-  if (ui.geo) cards.push({ id: 'geo', titulo: '📍 ' + ui.geo.name, geo: true });
-  cidadesDoClima().forEach((c, i) => cards.push({ id: 'c' + i, titulo: c, cidade: c }));
+  const cards = [], cidades = cidadesDoClima();
+  // no dia a dia a pessoa está numa cidade da lista (a equipe é toda de Penedo):
+  // nesse caso marca o cartão dela em vez de repetir a mesma cidade duas vezes
+  const aqui = ui.geo && cidades.find(c => norm(c) === norm(ui.geo.name));
+  if (ui.geo && !aqui) cards.push({ id: 'geo', titulo: '📍 ' + ui.geo.name, geo: true });
+  cidades.forEach((c, i) => cards.push({ id: 'c' + i, titulo: (c === aqui ? '📍 ' : '') + c, cidade: c, aqui: c === aqui }));
   body.innerHTML = (ui.geo ? '' : `<div class="warn-box row">📍 Ative a localização para ver o tempo de onde você está quando estiver viajando.<button class="btn btn-sm right" data-act="geo-on">Ativar</button></div>`)
     + cards.map(c => `<div class="wx-card" id="wx-${c.id}"><b>${esc(c.titulo)}</b> <span class="muted small">carregando…</span></div>`).join('');
-  for (const c of cards) {
-    const el = $('#wx-' + c.id, body); if (!el) continue;
+  // em paralelo: uma cidade lenta não pode segurar a fila das outras
+  await Promise.all(cards.map(async c => {
+    const el = $('#wx-' + c.id, body); if (!el) return;
     try {
       const w = c.geo ? await fetchWeatherAt(ui.geo.lat, ui.geo.lon, ui.geo.name, ui.geo.admin) : await fetchWeather(c.cidade);
       const [ico, lbl] = wmo(w.current.code);
-      const quem = c.geo ? 'você, agora' : people().filter(k => norm(person(k).cidade) === norm(c.cidade)).map(nameOf).join(', ');
-      el.innerHTML = `<div class="wx-now"><span class="big">${ico}</span><div><div class="temp">${w.current.temp}°C</div><div class="small">${lbl} · vento ${w.current.wind} km/h · umidade ${w.current.hum}%</div></div><div class="right small" style="text-align:right"><b>${esc(c.titulo)}</b>${w.admin ? '<br>' + esc(w.admin) : ''}${quem ? '<br><span class="muted">' + esc(quem) + '</span>' : ''}</div></div>
+      const moram = c.geo ? [] : people().filter(k => norm(person(k).cidade) === norm(c.cidade)).map(nameOf);
+      const quem = c.geo ? 'você, agora' : [...moram, c.aqui ? 'você está aqui' : ''].filter(Boolean).join(' · ');
+      el.innerHTML = `<div class="wx-now"><span class="big">${ico}</span><div><div class="temp">${w.current.temp}°C</div><div class="small">${lbl} · vento ${w.current.wind} km/h · umidade ${w.current.hum}%${w.velho ? ' · <b>última leitura, serviço fora do ar</b>' : ''}</div></div><div class="right small" style="text-align:right"><b>${esc(c.titulo)}</b>${w.admin ? '<br>' + esc(w.admin) : ''}${quem ? '<br><span class="muted">' + esc(quem) + '</span>' : ''}</div></div>
         <div class="wx-days">${w.daily.map(d => { const [i, l] = wmo(d.code); return `<div title="${l}"><span class="i">${i}</span>${WEEKDAYS[parseYmd(d.date).getDay()]}<br><b>${d.max}°</b> ${d.min}°<br>💧${d.pop == null ? '–' : d.pop + '%'}</div>`; }).join('')}</div>`;
     } catch (e) { el.innerHTML = `<b>${esc(c.titulo)}</b> <span class="muted small">não foi possível carregar (${esc(e.message)})</span>`; }
-  }
+  }));
 }
 // só o clima e as preferências mostram estado de localização; não mexe nos modais com formulário
 const repaintGeo = () => ['weather', 'prefs'].forEach(id => { const m = getModal(id); if (m) m.paint(m.body, m); });
