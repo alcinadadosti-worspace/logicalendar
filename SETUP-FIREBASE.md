@@ -13,11 +13,12 @@ Tempo estimado: 20 minutos.
 > | Credenciais | já coladas no bloco `FIREBASE_CONFIG` do `public/index.html` |
 > | Login e-mail/senha | ativado e testado |
 > | Contas e PINs | as três contas existem; `pinMap/map` e `authSetupDone/done` gravados |
-> | Render | **pendente** — passo 6, único item que falta |
+> | Render | no ar em <https://calendario-logistica.onrender.com> com `Cache-Control: no-cache` |
 >
-> Testes já feitos contra este projeto: sem login o Firestore recusa ler e escrever
-> em `logisticaData` (403); com login, lê e escreve normalmente. O botão
-> **Configurar contas** não aparece mais, porque o `pinMap` já existe.
+> **Está tudo pronto e em uso.** Testes feitos contra este projeto: sem login o Firestore
+> recusa ler e escrever em `logisticaData` (403); com login, lê e escreve normalmente;
+> a autenticação funciona a partir do domínio do Render. O botão **Configurar contas**
+> não aparece mais, porque o `pinMap` já existe.
 >
 > Nenhum outro projeto Firebase da conta foi tocado. Todo comando do CLI usa
 > `--project logicalendar-adt`, e o `.firebaserc` fixa esse projeto para esta pasta.
@@ -62,8 +63,10 @@ O PIN de 4 dígitos vira uma senha do Firebase Auth (`PIN + "lg"`), por isso o p
 
 1. Menu lateral → **Criação** → **Authentication** → **Vamos começar**.
 2. Aba **Sign-in method** → **E-mail/senha** → **Ativar** (só a primeira opção; "link por e-mail" fica desligado) → **Salvar**.
-3. Ainda em Authentication, aba **Settings** → **Domínios autorizados**: depois que o Render gerar a URL do site
-   (passo 6), volte aqui e adicione `SEU-SITE.onrender.com`. `localhost` já vem liberado.
+3. **Domínios autorizados não são necessários aqui.** A lista em Authentication → Settings vale para
+   login social (Google, Facebook) e link por e-mail, que este app não usa. Com e-mail/senha o site
+   funciona em qualquer domínio, e isso foi testado no endereço do Render. Só volte nessa tela se um dia
+   alguém acrescentar login social ao app.
 
 ## 3. Criar o banco Firestore
 
@@ -131,8 +134,10 @@ Cada `git push` republica o site automaticamente.
 5. No serviço criado: **Settings** → **Headers** → **Add Header** → Path `/*`, Name `Cache-Control`,
    Value `no-cache` → **Save**. Sem isso o navegador pode segurar um `index.html` antigo por horas
    depois de uma atualização.
-6. Copie a URL (`https://calendario-logistica.onrender.com` ou parecida).
-7. Volte ao Firebase → Authentication → Settings → **Domínios autorizados** → adicione essa URL (sem `https://`).
+6. Copie a URL do site. **Já feito:** <https://calendario-logistica.onrender.com>
+
+Não é preciso liberar o domínio no Firebase: com login de e-mail/senha, a lista de domínios
+autorizados não entra em jogo (veja o passo 2).
 
 > O `render.yaml` na raiz descreve exatamente este mesmo serviço (`runtime: static`,
 > `staticPublishPath: ./public`, header `no-cache`). Ele **não** é usado no caminho acima: fica só
