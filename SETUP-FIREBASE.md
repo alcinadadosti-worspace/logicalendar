@@ -3,6 +3,25 @@
 Passo a passo para criar o projeto Firebase **novo**, colar as credenciais e publicar no Render.
 Tempo estimado: 20 minutos.
 
+> **Estado atual (02/09/2026):** o projeto Firebase já existe e está ligado ao código.
+>
+> | Item | Situação |
+> |---|---|
+> | Projeto Firebase | `logicalendar-adt`, conta **alcinadadosti@gmail.com** (criado pelo CLI; o ID `calendario-logistica` já estava ocupado no Google Cloud) |
+> | Banco Firestore | criado em **southamerica-east1 (São Paulo)**, modo nativo |
+> | Regras de segurança | publicadas a partir do `firestore.rules` |
+> | Credenciais | já coladas no bloco `FIREBASE_CONFIG` do `public/index.html` |
+> | Login e-mail/senha | **pendente** — passo 2 (só dá para ativar no console) |
+> | Render | **pendente** — passo 6 |
+> | Contas e PINs | **pendente** — passo 7 |
+>
+> Nenhum outro projeto Firebase da conta foi tocado. Todo comando do CLI usa
+> `--project logicalendar-adt`, e o `.firebaserc` fixa esse projeto para esta pasta.
+>
+> Console do projeto: <https://console.firebase.google.com/project/logicalendar-adt/overview>.
+> Os passos 1, 3, 4 e 5 abaixo ficam como referência para recriar tudo do zero, se um dia for preciso.
+> Com o Firebase CLI logado nessa conta, as regras se publicam com `firebase deploy --only firestore:rules` nesta pasta.
+
 > **Não reaproveite** o projeto Firebase nem o site do Render do outro calendário. Este app usa a
 > collection `logisticaData` e precisa de um projeto próprio para os dados não se misturarem.
 
