@@ -204,4 +204,20 @@ Cada chave do estado é **um documento** `logisticaData/<chave>` com o JSON em `
 reminders, kudos, messages, folgas, userPriorities, equipe, equipeFotos`
 
 Os eventos referenciam pessoas pela **chave** (`alberto`, `ludmylla`, `rosilene`), nunca pelo nome.
-Tema e modo festivo ficam só no `localStorage` de cada aparelho.
+Tema, modo festivo e localização ficam só no `localStorage` de cada aparelho.
+
+## 12. Ajustes comuns no `public/index.html`
+
+| O que mudar | Onde |
+|---|---|
+| Cidades do clima | `CIDADES_OPERACAO` e `UF_OPERACAO`, logo abaixo do `SEED_EQUIPE` |
+| Frases do dia | `QUOTES` — 60 máximas de *O Caibalion*; troca sozinha a cada dia e repete o ciclo a cada 60 dias |
+| Cidade de cada pessoa | pela tela **Equipe → gerenciar**, não no código |
+
+Sobre o clima: a busca do Open-Meteo é filtrada por Alagoas, porque *São Sebastião* sozinho
+cai na Espanha e *Penedo* no Rio de Janeiro. O nome mostrado vem da nossa lista, não da
+resposta da API, que chama Teotônio Vilela de "Feira Nova" (as coordenadas estão certas).
+
+Sobre a localização: o app pede uma vez por aparelho, logo depois do login. Quem autoriza vê o
+tempo de onde está, útil quando a equipe viaja; quem recusa não é perguntado de novo e continua
+vendo o clima da cidade cadastrada. Dá para ligar ou desligar depois em ⚙️ Preferências → Localização.

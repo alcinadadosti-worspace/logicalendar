@@ -530,10 +530,17 @@ const DEMO = /COLE_AQUI/.test(FIREBASE_CONFIG.apiKey) || new URLSearchParams(loc
  * (collab:'ludmylla'), nunca pelo nome — por isso a chave nunca muda.
  * ===================================================================== */
 const SEED_EQUIPE = {
-  alberto:  { nome:'Alberto',  cor:'#5B9BEF', foto:'fotos/alberto.jpg',  cidade:'São Paulo', email:'alberto@logistica.cal',  ativo:true, role:'admin'  },
-  ludmylla: { nome:'Ludmylla', cor:'#F27DAD', foto:'fotos/ludmylla.jpg', cidade:'Campinas',  email:'ludmylla@logistica.cal', ativo:true, role:'viewer' },
-  rosilene: { nome:'Rosilene', cor:'#5FCB6A', foto:'fotos/rosilene.jpg', cidade:'Guarulhos', email:'rosilene@logistica.cal', ativo:true, role:'viewer' }
+  alberto:  { nome:'Alberto',  cor:'#5B9BEF', foto:'fotos/alberto.jpg',  cidade:'Penedo', email:'alberto@logistica.cal',  ativo:true, role:'admin'  },
+  ludmylla: { nome:'Ludmylla', cor:'#F27DAD', foto:'fotos/ludmylla.jpg', cidade:'Penedo', email:'ludmylla@logistica.cal', ativo:true, role:'viewer' },
+  rosilene: { nome:'Rosilene', cor:'#5FCB6A', foto:'fotos/rosilene.jpg', cidade:'Penedo', email:'rosilene@logistica.cal', ativo:true, role:'viewer' }
 };
+
+/* Cidades da operação, todas em Alagoas. Os nomes aqui são os que aparecem na
+ * tela: o Open-Meteo devolve "Feira Nova" para Teotônio Vilela (coordenadas
+ * certas, nome antigo), e "São Sebastião" sozinho cai na Espanha — por isso a
+ * busca filtra pelo estado e o rótulo vem desta lista, não da resposta. */
+const UF_OPERACAO = 'Alagoas';
+const CIDADES_OPERACAO = ['Penedo', 'Palmeira dos Índios', 'Teotônio Vilela', 'Coruripe', 'São Sebastião'];
 
 const EVENT_TYPES = {
   entrega:      { label:'Entrega',      ico:'📦' },
@@ -594,37 +601,71 @@ const HOLIDAYS = {
   '2028-10-12':'Nossa Senhora Aparecida','2028-11-02':'Finados','2028-11-15':'Proclamação da República','2028-11-20':'Consciência Negra','2028-12-25':'Natal'
 };
 
+/* Frases do dia: 60 máximas de O Caibalion (1908, Três Iniciados), obra em
+ * domínio público. Trocam sozinhas a cada dia — dayOfYear % 60 — então o ciclo
+ * completo leva 60 dias. A redação segue as traduções correntes em português;
+ * edições diferentes variam no texto. */
 const QUOTES = [
-  'Logística é fazer o certo chegar ao lugar certo, na hora certa.',
-  'Planejar é trazer o futuro para o presente, para fazer algo a respeito agora. — Alan Lakein',
-  'Sozinhos vamos mais rápido; juntos vamos mais longe.',
-  'Feito é melhor que perfeito.',
-  'A qualidade nunca é um acidente; é sempre o resultado de um esforço inteligente. — John Ruskin',
-  'Cada entrega é uma promessa cumprida.',
-  'O segredo de avançar é começar. — Mark Twain',
-  'Rota clara, dia leve.',
-  'Organização é o que fazemos antes de fazer alguma coisa, para que não vire bagunça. — A. A. Milne',
-  'Não conte os dias; faça os dias contarem. — Muhammad Ali',
-  'Um bom time é como uma boa carga: bem distribuída, chega inteira.',
-  'Simplicidade é a sofisticação máxima. — Leonardo da Vinci',
-  'Se quer ir depressa, prepare a estrada antes.',
-  'A disciplina é a ponte entre metas e realizações. — Jim Rohn',
-  'Nada é particularmente difícil se você dividir em pequenas tarefas. — Henry Ford',
-  'Cuide dos detalhes: a entrega inteira depende deles.',
-  'A melhor forma de prever o futuro é criá-lo. — Peter Drucker',
-  'Comece onde você está, use o que você tem, faça o que você pode. — Arthur Ashe',
-  'Cada conferência bem feita evita uma dor de cabeça amanhã.',
-  'Confiança se constrói entrega a entrega.',
-  'Ordem no galpão, paz na expedição.',
-  'A pressa é inimiga da conferência.',
-  'Sucesso é a soma de pequenos esforços repetidos dia após dia. — Robert Collier',
-  'Trabalho em equipe faz o sonho funcionar.',
-  'Um bom plano hoje vale mais que um plano perfeito amanhã. — George S. Patton',
-  'Quem cuida da rota, chega.',
-  'Descanso também faz parte da operação.',
-  'Comunicação clara é meia entrega feita.',
-  'O que se mede, melhora.',
-  'Grandes resultados nascem de rotinas bem feitas.'
+  'O TODO é mente; o Universo é mental.',
+  'O que está em cima é como o que está embaixo; o que está embaixo é como o que está em cima.',
+  'Nada está parado; tudo se move; tudo vibra.',
+  'Tudo é duplo; tudo tem polos; tudo tem seu par de opostos.',
+  'Os semelhantes e os dessemelhantes são a mesma coisa.',
+  'Os opostos são idênticos em natureza, mas diferentes em grau.',
+  'Os extremos se tocam; todas as verdades são meias-verdades.',
+  'Todos os paradoxos podem ser reconciliados.',
+  'Tudo flui, para fora e para dentro; tudo tem suas marés.',
+  'Todas as coisas sobem e descem; a oscilação do pêndulo se manifesta em tudo.',
+  'A medida da oscilação à direita é a medida da oscilação à esquerda.',
+  'O ritmo compensa.',
+  'Toda causa tem seu efeito; todo efeito tem sua causa.',
+  'Tudo acontece de acordo com a Lei.',
+  'O acaso é apenas um nome para a Lei não reconhecida.',
+  'Há muitos planos de causalidade, mas nada escapa à Lei.',
+  'O gênero está em tudo; tudo tem seus princípios masculino e feminino.',
+  'O gênero se manifesta em todos os planos.',
+  'Os lábios da sabedoria permanecem fechados, exceto para o ouvido capaz de compreender.',
+  'Onde caem as pegadas do Mestre, os ouvidos dos que estão prontos para o ensinamento se abrem.',
+  'Quando os ouvidos do discípulo estão prontos para ouvir, chegam os lábios para enchê-los de sabedoria.',
+  'A meia sabedoria nega; a plena sabedoria admite.',
+  'Sob e atrás do Universo do tempo, do espaço e da mudança, encontra-se sempre a Realidade Substancial.',
+  'Aquilo que é a Verdade Fundamental está além de todo nome verdadeiro.',
+  'O TODO é incognoscível.',
+  'O TODO deve ser tudo o que realmente é.',
+  'Nada pode existir fora do TODO.',
+  'O Universo é uma criação mental sustentada na mente do TODO.',
+  'O Universo, e tudo o que ele contém, é uma criação mental.',
+  'A mente pode ser transmutada de estado em estado, de grau em grau, de polo a polo.',
+  'A verdadeira transmutação hermética é uma arte mental.',
+  'Para mudar teu humor ou teu estado mental, muda tua vibração.',
+  'Muda tua vibração por um esforço da vontade, fixando a atenção no estado desejado.',
+  'A vontade dirige a atenção, e a atenção transmuta a vibração.',
+  'Domina teus humores; não sejas dominado por eles.',
+  'Nada escapa ao princípio de causa e efeito, mas há muitos planos de causação.',
+  'O sábio obedece às leis do que está acima; em seu próprio plano, governa.',
+  'Ele desempenha parte inteligente no jogo da vida, em vez de ser movido como um peão.',
+  'Usa as leis do plano superior para dominar as do plano inferior.',
+  'A maioria é levada pelo ambiente, obedecendo às vontades alheias e às causas exteriores.',
+  'Elevando-se a um plano superior, tornam-se causas em vez de efeitos.',
+  'Nada existe fora; tudo existe dentro.',
+  'O Universo é mental, e a mente é a chave.',
+  'Como acima, assim abaixo; como abaixo, assim acima.',
+  'Conhecendo uma parte, conhece-se algo do todo, porque a correspondência é a lei.',
+  'Aquele que compreende o princípio da vibração empunha o cetro do poder.',
+  'A diferença entre espírito e matéria é apenas diferença de grau de vibração.',
+  'O calor e o frio, a luz e a treva, o grande e o pequeno, são graus de uma mesma coisa.',
+  'É possível transmutar o ódio em amor, mudando a vibração.',
+  'O medo e a coragem são polos da mesma coisa; eleva o polo e o medo se desfaz.',
+  'Onde há bem e mal, há apenas os dois polos de uma mesma coisa.',
+  'Nada é absolutamente verdadeiro; todas as verdades são meias-verdades.',
+  'A lei do ritmo governa a subida e a descida de tudo o que vive.',
+  'O hermético permanece firme enquanto o pêndulo oscila.',
+  'Polariza-te no polo que desejas e recusa participar do movimento de retorno.',
+  'Nada acontece por acaso; tudo obedece à Lei.',
+  'O acaso não existe; existe apenas a causa que ainda não vimos.',
+  'Cada pensamento e cada ato tem seu efeito, e nenhum se perde.',
+  'O gênero opera sempre no sentido de gerar, criar e produzir.',
+  'O princípio do gênero manifesta-se em todos os planos, sempre criando.'
 ];
 
 // Códigos WMO do Open-Meteo → ícone + descrição.
@@ -741,6 +782,7 @@ const ui = {
   festivo: lsGet('lg_festivo', '1') === '1',
   weekStart: Number(lsGet('lg_weekStart', '0')) || 0,
   ready: false, online: navigator.onLine, firstSnapshot: true,
+  geo: null,          // { lat, lon, name, admin } quando a pessoa autoriza a localização
   modals: []
 };
 
@@ -877,6 +919,7 @@ function startSession(key) {
   render();
   requestNotifPermission();
   loadWeather();
+  autoLocalizar();   // a equipe viaja: o clima segue quem está na estrada
   maybeCelebrate();
 }
 async function logout() {
@@ -1346,34 +1389,96 @@ ACT['open-event'] = el => { toggleDrawer(false); openEventCard(el.dataset.id); }
 CHG['toggle-task'] = el => toggleTask(el.dataset.id, el.dataset.task, el.checked);
 
 /* =====================================================================
- * 12. CLIMA — Open-Meteo, sem chave. Geocodifica a cidade uma vez (cache
- * permanente) e guarda a previsão por 30 min por cidade.
+ * 12. CLIMA — Open-Meteo, sem chave. A equipe é de Penedo (AL), mas viaja:
+ * se a pessoa autorizar a localização, o banner mostra o tempo de onde ela
+ * está; senão, o da cidade cadastrada. Geocodificação fica em cache pra
+ * sempre (não muda) e a previsão por 30 min, por coordenada.
  * ===================================================================== */
-async function geocode(city) {
-  const ck = 'lg_geo_' + norm(city), hit = lsGet(ck, null); if (hit) return JSON.parse(hit);
-  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=pt&format=json`);
-  const j = await r.json(); const g = j.results && j.results[0]; if (!g) throw new Error('cidade não encontrada');
-  const out = { lat: g.latitude, lon: g.longitude, name: g.name, admin: g.admin1 || '' }; lsSet(ck, JSON.stringify(out)); return out;
+async function geocode(city, uf = UF_OPERACAO) {
+  const ck = 'lg_geo_' + norm(city) + '_' + norm(uf), hit = lsGet(ck, null); if (hit) return JSON.parse(hit);
+  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=10&language=pt&format=json`);
+  const j = await r.json(); const rs = j.results || [];
+  // sem filtro, "São Sebastião" cai na Espanha e "Penedo" no Rio de Janeiro
+  const g = rs.find(x => x.country_code === 'BR' && norm(x.admin1 || '').includes(norm(uf)))
+         || rs.find(x => x.country_code === 'BR') || rs[0];
+  if (!g) throw new Error('cidade não encontrada');
+  // guarda o nome que pedimos, não o da resposta (Teotônio Vilela volta como "Feira Nova")
+  const out = { lat: g.latitude, lon: g.longitude, name: city, admin: g.admin1 || '' };
+  lsSet(ck, JSON.stringify(out)); return out;
 }
-async function fetchWeather(city) {
-  const ck = 'lg_wx_' + norm(city), hit = lsGet(ck, null);
-  if (hit) { try { const j = JSON.parse(hit); if (Date.now() - j.at < 30 * 60e3) return j; } catch (e) {} }
-  const g = await geocode(city);
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${g.lat}&longitude=${g.lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=5`;
+async function fetchWeatherAt(lat, lon, name, admin) {
+  const ck = `lg_wx_${lat.toFixed(2)}_${lon.toFixed(2)}`, hit = lsGet(ck, null);
+  if (hit) { try { const j = JSON.parse(hit); if (Date.now() - j.at < 30 * 60e3) return { ...j, city: name || j.city, admin: admin || j.admin }; } catch (e) {} }
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=5`;
   const r = await fetch(url); const j = await r.json();
   if (!j.current) throw new Error('resposta inesperada');
-  const out = { at: Date.now(), city: g.name, admin: g.admin,
+  const out = { at: Date.now(), city: name || 'Sua localização', admin: admin || '',
     current: { temp: Math.round(j.current.temperature_2m), code: j.current.weather_code, wind: Math.round(j.current.wind_speed_10m), hum: j.current.relative_humidity_2m },
     daily: j.daily.time.map((d, i) => ({ date: d, code: j.daily.weather_code[i], max: Math.round(j.daily.temperature_2m_max[i]), min: Math.round(j.daily.temperature_2m_min[i]), pop: j.daily.precipitation_probability_max[i] })) };
   lsSet(ck, JSON.stringify(out)); return out;
 }
+async function fetchWeather(city, uf) { const g = await geocode(city, uf); return fetchWeatherAt(g.lat, g.lon, g.name, g.admin); }
 const wmo = code => WMO[code] || ['🌡️', 'Tempo'];
+
+/* ---------- localização do aparelho ----------
+ * Pedida uma única vez por aparelho: quem nega não é incomodado de novo, e
+ * quem quiser ligar depois usa o botão nas preferências ou no modal do clima. */
+const geoSuportada = () => 'geolocation' in navigator;
+function pedirLocalizacao(manual = false) {
+  return new Promise(resolve => {
+    if (!geoSuportada()) { if (manual) toast('Este navegador não informa a localização', 'err'); return resolve(null); }
+    if (!manual && lsGet('lg_geo_negada', '') === '1') return resolve(null);
+    navigator.geolocation.getCurrentPosition(async pos => {
+      const lat = pos.coords.latitude, lon = pos.coords.longitude;
+      ui.geo = { lat, lon, name: 'Sua localização', admin: '', at: Date.now() };
+      lsSet('lg_geo_negada', '0');
+      try {
+        // nome da cidade onde a pessoa está; se falhar, o clima continua funcionando pelas coordenadas
+        const j = await (await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=pt`)).json();
+        const adm = (j.localityInfo && j.localityInfo.administrative) || [];
+        const municipio = adm.filter(a => a.adminLevel === 8).map(a => a.name)[0];
+        ui.geo.name = municipio || j.locality || j.city || 'Sua localização';
+        ui.geo.admin = j.principalSubdivision || '';
+      } catch (e) {}
+      if (manual) toast(`Localização: ${ui.geo.name} ✓`, 'ok');
+      loadWeather(); repaintModals(); resolve(ui.geo);
+    }, err => {
+      if (err.code === 1) lsSet('lg_geo_negada', '1');   // negou: não insiste nas próximas vezes
+      if (manual) toast(err.code === 1 ? 'Permissão negada. Libere a localização no navegador.' : 'Não consegui obter a localização', 'err');
+      resolve(null);
+    }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 10 * 60e3 });
+  });
+}
+async function autoLocalizar() {
+  if (!geoSuportada()) return;
+  try {
+    const p = navigator.permissions && await navigator.permissions.query({ name: 'geolocation' });
+    if (p && p.state === 'granted') return void pedirLocalizacao(false);  // já autorizado: nem aparece prompt
+    if (p && p.state === 'denied') return;
+  } catch (e) {}
+  if (lsGet('lg_geo_perguntado', '') === '1') return;   // um pedido por aparelho, e só
+  lsSet('lg_geo_perguntado', '1');
+  setTimeout(() => pedirLocalizacao(false), 3500);      // depois do pedido de notificação, pra não empilhar
+}
+/* O login dispara a busca da cidade cadastrada e, segundos depois, a localização
+ * dispara outra. A primeira costuma demorar mais (precisa geocodificar) e chegava
+ * atrasada, sobrescrevendo a segunda — daí a numeração: só a chamada mais recente
+ * pode escrever no banner. O 📍 também é decidido no início, senão a resposta
+ * antiga aparece marcada como se fosse a localização. */
+let wxSeq = 0;
 async function loadWeather() {
-  const city = session.user && person(session.user).cidade;
-  if (!city) { $('#wx-val').textContent = 'sem cidade cadastrada'; return; }
-  $('#wx-val').textContent = 'carregando…';
-  try { const w = await fetchWeather(city); const [ico, lbl] = wmo(w.current.code); $('#wx-ico').textContent = ico; $('#wx-val').textContent = `${w.current.temp}°C · ${lbl} · ${w.city}`; }
-  catch (e) { $('#wx-val').textContent = 'clima indisponível'; }
+  const el = $('#wx-val'); if (!el) return;
+  if (!session.user) { el.textContent = '—'; return; }
+  const meu = ++wxSeq, geo = ui.geo;
+  const cidade = person(session.user).cidade || CIDADES_OPERACAO[0];
+  el.textContent = 'carregando…';
+  try {
+    const w = geo ? await fetchWeatherAt(geo.lat, geo.lon, geo.name, geo.admin) : await fetchWeather(cidade);
+    if (meu !== wxSeq) return;   // uma busca mais nova já respondeu: esta ficou velha
+    const [ico, lbl] = wmo(w.current.code);
+    $('#wx-ico').textContent = ico;
+    el.textContent = `${w.current.temp}°C · ${lbl} · ${geo ? '📍 ' : ''}${w.city}`;
+  } catch (e) { if (meu === wxSeq) el.textContent = 'clima indisponível'; }
 }
 
 /* =====================================================================
@@ -2178,6 +2283,16 @@ ACT.prefs = () => openModal({ id: 'prefs', title: '⚙️ Preferências', narrow
   const perm = 'Notification' in window ? Notification.permission : 'unsupported';
   body.innerHTML = `<div class="section"><h3>Aparência</h3><label class="toggle mb"><input type="checkbox" data-change="pref-theme" ${ui.theme === 'dark' ? 'checked' : ''}> Tema escuro</label><br><label class="toggle mb"><input type="checkbox" data-change="pref-festivo" ${ui.festivo ? 'checked' : ''}> Modo festivo (flocos e confetes em datas especiais)</label><div class="field mt"><label>Semana começa em</label><select data-change="pref-weekstart"><option value="0" ${ui.weekStart === 0 ? 'selected' : ''}>Domingo</option><option value="1" ${ui.weekStart === 1 ? 'selected' : ''}>Segunda</option></select></div><div class="hint">Estas preferências são deste aparelho e não sincronizam.</div></div>
     <div class="section"><h3>Notificações do navegador</h3><div class="small mb">Status: <b>${{ granted: 'permitidas ✓', denied: 'bloqueadas no navegador', default: 'ainda não pedidas', unsupported: 'não suportadas' }[perm]}</b></div>${perm === 'default' ? '<button class="btn btn-sm" data-act="notif-ask">Permitir notificações</button>' : ''}${perm === 'granted' ? '<button class="btn btn-sm" data-act="notif-test">Testar</button>' : ''}</div>
+    <div class="section"><h3>Localização</h3>
+      <div class="small mb">${ui.geo
+        ? `Clima seguindo <b>${esc(ui.geo.name)}</b>${ui.geo.admin ? ' · ' + esc(ui.geo.admin) : ''}.`
+        : `Clima pela cidade cadastrada: <b>${esc((session.user && person(session.user).cidade) || CIDADES_OPERACAO[0])}</b>.`}</div>
+      <div class="row">
+        <button class="btn btn-sm" data-act="geo-on">${ui.geo ? '↻ Atualizar localização' : '📍 Usar minha localização'}</button>
+        ${ui.geo ? '<button class="btn btn-sm" data-act="geo-off">Voltar para a cidade cadastrada</button>' : ''}
+      </div>
+      <div class="hint">Serve para quando a equipe viaja: o banner passa a mostrar o tempo de onde você está, em vez do de ${esc(CIDADES_OPERACAO[0])}.</div>
+    </div>
     ${session.user && !DEMO && auth ? `<form class="section" data-submit="change-pin" autocomplete="off"><h3>Trocar meu PIN</h3><div class="grid2"><div class="field"><label>PIN atual</label><input class="input" type="password" name="old" inputmode="numeric" maxlength="4" required></div><div class="field"><label>Novo PIN</label><input class="input" type="password" name="new" inputmode="numeric" maxlength="4" required></div></div><button class="btn btn-sm btn-primary" type="submit">Trocar PIN</button></form>` : ''}
     <div class="section"><h3>Sobre</h3><div class="small">Calendário Logística v${APP_VERSION} · ${DEMO ? 'modo demonstração' : 'projeto ' + esc(FIREBASE_CONFIG.projectId)}</div><button class="btn btn-xs mt" data-act="clear-cache">Limpar cache local</button></div>`;
 } });
@@ -2196,20 +2311,34 @@ SUB['change-pin'] = async form => {
   } catch (e) { toast('Não deu: ' + (['auth/wrong-password', 'auth/invalid-credential'].includes(e.code) ? 'PIN atual incorreto' : e.message), 'err'); }
 };
 
-/* ---------- clima de todas as cidades ---------- */
-ACT.weather = () => openModal({ id: 'weather', title: '🌤️ Clima da operação', live: false, paint: async body => {
-  const cities = [...new Set(people().map(k => person(k).cidade).filter(Boolean))];
-  if (!cities.length) { body.innerHTML = '<div class="empty">Nenhuma cidade cadastrada na equipe.</div>'; return; }
-  body.innerHTML = cities.map(c => `<div class="wx-card" id="wx-${slug(c)}"><b>${esc(c)}</b> <span class="muted small">carregando…</span></div>`).join('');
-  for (const c of cities) {
-    const el = $('#wx-' + slug(c), body); if (!el) continue;
+/* ---------- clima: cidades da operação + onde a pessoa está ---------- */
+ACT.weather = () => openModal({ id: 'weather', title: '🌤️ Clima da operação', sub: `${CIDADES_OPERACAO.length} cidades em ${UF_OPERACAO}`, live: false, paint: paintWeather });
+// cidades fixas da operação + qualquer cidade cadastrada na equipe que não esteja na lista
+function cidadesDoClima() {
+  const extras = people().map(k => person(k).cidade).filter(c => c && !CIDADES_OPERACAO.some(x => norm(x) === norm(c)));
+  return [...CIDADES_OPERACAO, ...new Set(extras)];
+}
+async function paintWeather(body) {
+  const cards = [];
+  if (ui.geo) cards.push({ id: 'geo', titulo: '📍 ' + ui.geo.name, geo: true });
+  cidadesDoClima().forEach((c, i) => cards.push({ id: 'c' + i, titulo: c, cidade: c }));
+  body.innerHTML = (ui.geo ? '' : `<div class="warn-box row">📍 Ative a localização para ver o tempo de onde você está quando estiver viajando.<button class="btn btn-sm right" data-act="geo-on">Ativar</button></div>`)
+    + cards.map(c => `<div class="wx-card" id="wx-${c.id}"><b>${esc(c.titulo)}</b> <span class="muted small">carregando…</span></div>`).join('');
+  for (const c of cards) {
+    const el = $('#wx-' + c.id, body); if (!el) continue;
     try {
-      const w = await fetchWeather(c), [ico, lbl] = wmo(w.current.code), who = people().filter(k => person(k).cidade === c).map(nameOf).join(', ');
-      el.innerHTML = `<div class="wx-now"><span class="big">${ico}</span><div><div class="temp">${w.current.temp}°C</div><div class="small">${lbl} · vento ${w.current.wind} km/h · umidade ${w.current.hum}%</div></div><div class="right small" style="text-align:right"><b>${esc(w.city)}</b>${w.admin ? '<br>' + esc(w.admin) : ''}<br><span class="muted">${esc(who)}</span></div></div>
+      const w = c.geo ? await fetchWeatherAt(ui.geo.lat, ui.geo.lon, ui.geo.name, ui.geo.admin) : await fetchWeather(c.cidade);
+      const [ico, lbl] = wmo(w.current.code);
+      const quem = c.geo ? 'você, agora' : people().filter(k => norm(person(k).cidade) === norm(c.cidade)).map(nameOf).join(', ');
+      el.innerHTML = `<div class="wx-now"><span class="big">${ico}</span><div><div class="temp">${w.current.temp}°C</div><div class="small">${lbl} · vento ${w.current.wind} km/h · umidade ${w.current.hum}%</div></div><div class="right small" style="text-align:right"><b>${esc(c.titulo)}</b>${w.admin ? '<br>' + esc(w.admin) : ''}${quem ? '<br><span class="muted">' + esc(quem) + '</span>' : ''}</div></div>
         <div class="wx-days">${w.daily.map(d => { const [i, l] = wmo(d.code); return `<div title="${l}"><span class="i">${i}</span>${WEEKDAYS[parseYmd(d.date).getDay()]}<br><b>${d.max}°</b> ${d.min}°<br>💧${d.pop == null ? '–' : d.pop + '%'}</div>`; }).join('')}</div>`;
-    } catch (e) { el.innerHTML = `<b>${esc(c)}</b> <span class="muted small">não foi possível carregar (${esc(e.message)})</span>`; }
+    } catch (e) { el.innerHTML = `<b>${esc(c.titulo)}</b> <span class="muted small">não foi possível carregar (${esc(e.message)})</span>`; }
   }
-} });
+}
+// só o clima e as preferências mostram estado de localização; não mexe nos modais com formulário
+const repaintGeo = () => ['weather', 'prefs'].forEach(id => { const m = getModal(id); if (m) m.paint(m.body, m); });
+ACT['geo-on'] = async () => { await pedirLocalizacao(true); repaintGeo(); };
+ACT['geo-off'] = () => { ui.geo = null; lsSet('lg_geo_negada', '1'); loadWeather(); repaintGeo(); toast('Voltando para a cidade cadastrada'); };
 
 /* ---------- backup JSON / restaurar / imprimir ---------- */
 ACT.backup = () => openModal({ id: 'backup', title: '💾 Backup', narrow: true, live: false, paint: body => {
@@ -2376,7 +2505,7 @@ function seedDemo() {
   const d = n => addDaysYmd(todayYmd(), n);
   const ev = o => ({ id: uid(), kind: 'evento', allDay: false, priority: 'media', rsvp: {}, comments: [], createdBy: 'alberto', createdAt: Date.now() - 864e5, ...o });
   state.events = [
-    ev({ title: 'Rota Zona Norte', type: 'rota', date: d(0), start: '07:00', end: '12:00', collab: 'ludmylla', local: 'CD Guarulhos', tasks: [{ id: uid(), who: 'ludmylla', role: 'Rota', priority: 'alta', done: false }], comments: [{ id: uid(), by: 'ludmylla', text: 'Saindo agora, @Alberto. Previsão de voltar 11h30.', at: Date.now() - 36e5 }] }),
+    ev({ title: 'Rota Zona Norte', type: 'rota', date: d(0), start: '07:00', end: '12:00', collab: 'ludmylla', local: 'CD Penedo', tasks: [{ id: uid(), who: 'ludmylla', role: 'Rota', priority: 'alta', done: false }], comments: [{ id: uid(), by: 'ludmylla', text: 'Saindo agora, @Alberto. Previsão de voltar 11h30.', at: Date.now() - 36e5 }] }),
     ev({ title: 'Entrega Atacado Sul', type: 'entrega', date: d(0), start: '14:00', end: '16:00', collab: 'rosilene', tasks: [{ id: uid(), who: 'rosilene', role: 'Expedição', priority: 'media', done: false }] }),
     ev({ title: 'Reunião semanal de rotas', kind: 'reuniao', type: 'reuniao', date: d(1), start: '09:00', end: '09:45', collab: 'todos', participants: ['alberto', 'ludmylla', 'rosilene'], tasks: [], rsvp: { ludmylla: 'sim' } }),
     ev({ title: 'Coleta fornecedor de embalagens', type: 'coleta', date: d(2), start: '10:00', end: '11:30', collab: 'ludmylla', tasks: [{ id: uid(), who: 'ludmylla', role: 'Rota', priority: 'baixa', done: true, doneAt: Date.now() }] }),
