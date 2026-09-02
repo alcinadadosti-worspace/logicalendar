@@ -1,0 +1,15 @@
+# Blueprint do Render: site estático servido direto da pasta ./public.
+# Crie um serviço NOVO (não reaproveite o do outro calendário).
+services:
+  - type: web
+    name: calendario-logistica
+    runtime: static
+    buildCommand: ""
+    staticPublishPath: ./public
+    pullRequestPreviewsEnabled: false
+    headers:
+      # no-cache: o navegador sempre revalida; junto com o service worker, garante
+      # que uma atualização do index.html chegue em todos os dispositivos na hora.
+      - path: /*
+        name: Cache-Control
+        value: no-cache

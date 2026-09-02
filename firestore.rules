@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Dados do calendário: cada chave do estado é um documento (events, folgas, ...).
+    // Só quem fez login com PIN lê ou escreve.
+    match /logisticaData/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Mapa SHA-256(pin) -> email. Precisa ser público pra leitura porque o login
+    // acontece ANTES de existir usuário autenticado. Escrita só autenticado
+    // (a configuração inicial entra como gestor antes de gravar).
+    match /pinMap/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Marcador de "contas já criadas" — também lido na tela de login.
+    match /authSetupDone/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Qualquer outra coisa: bloqueado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

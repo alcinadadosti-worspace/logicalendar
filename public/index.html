@@ -1,0 +1,2416 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calendário · Logística</title>
+<meta name="description" content="Calendário da equipe de Logística">
+<meta name="theme-color" content="#1A1438">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="logo.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+/* Tema aplicado antes do CSS carregar, senão a tela pisca clara antes de ficar escura. */
+try { var t = localStorage.getItem('lg_theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+</script>
+<style>
+/* =====================================================================
+   TOKENS — neo-brutalismo suave: creme + tinta roxa, bordas 1.5px,
+   sombra sólida deslocada, cantos 6px, botões pílula.
+   ===================================================================== */
+:root{
+  --paper:#FBF8F1; --paper-2:#F1ECDF; --card:#FFFFFF;
+  --ink:#1A1438; --ink-2:#4A4470; --muted:#7A7594;
+  --line:#1A1438; --accent:#5B9BEF; --danger:#D64545; --ok:#2E9E5B; --warn:#E9A23B;
+  --todos:#1A1438; --todos-ink:#FBF8F1;
+  --shadow:2px 2px 0 var(--ink); --shadow-lg:4px 4px 0 var(--ink);
+  --r:6px; --bw:1.5px; --border:var(--bw) solid var(--line);
+  --font-ui:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-serif:'Fraunces','Georgia','Times New Roman',serif;
+  --sidebar-w:300px; --hour-h:48px; --top-h:60px;
+}
+[data-theme="dark"]{
+  --paper:#15112A; --paper-2:#1D1838; --card:#241E44;
+  --ink:#F3EFE6; --ink-2:#D2CCE8; --muted:#A39DC2;
+  --line:#F3EFE6; --todos:#F3EFE6; --todos-ink:#15112A;
+  --danger:#F26D6D; --ok:#5BC98A; --warn:#F2B75A;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--font-ui);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;min-height:100vh}
+body.modal-open,body.drawer-open{overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:inherit}
+img{max-width:100%}
+[hidden]{display:none!important}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.muted{color:var(--muted)} .small{font-size:12px} .right{margin-left:auto} .flex1{flex:1;min-width:0}
+.mt{margin-top:10px} .mb{margin-bottom:10px} .center{text-align:center}
+.serif{font-family:var(--font-serif)} .italic{font-style:italic}
+h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em}
+
+/* ---------- botões ---------- */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:var(--border);border-radius:999px;background:var(--card);color:var(--ink);box-shadow:var(--shadow);cursor:pointer;font-weight:600;font-size:13px;line-height:1.2;transition:transform .08s,box-shadow .08s;white-space:nowrap;text-decoration:none;position:relative}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--ink)}
+.btn:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--ink)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-primary{background:var(--ink);color:var(--paper)}
+.btn-accent{background:var(--accent);color:#1A1438}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-ghost{box-shadow:none;background:transparent}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-xs{padding:2px 8px;font-size:11px}
+.btn-block{width:100%;justify-content:center}
+.btn.on{background:var(--ink);color:var(--paper)}
+.iconbtn{position:relative;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border:var(--border);border-radius:var(--r);background:var(--card);box-shadow:var(--shadow);cursor:pointer;font-size:16px;padding:0;flex-shrink:0;transition:transform .08s,box-shadow .08s}
+.iconbtn:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--ink)}
+.iconbtn:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--ink)}
+.badge{position:absolute;top:-7px;right:-7px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--danger);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--paper);line-height:1}
+.badge:empty{display:none}
+
+/* ---------- campos ---------- */
+.input,select,textarea{width:100%;padding:8px 10px;border:var(--border);border-radius:var(--r);background:var(--card);color:var(--ink);outline:none;font-size:14px}
+.input:focus,select:focus,textarea:focus{box-shadow:var(--shadow)}
+input[type=color]{width:44px;height:34px;padding:2px;border:var(--border);border-radius:var(--r);background:var(--card);cursor:pointer}
+input[type=checkbox],input[type=radio]{accent-color:var(--ink);width:16px;height:16px}
+textarea{min-height:72px;resize:vertical;line-height:1.4}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;min-width:0}
+.field>label{font-size:11px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.05em}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row.nowrap{flex-wrap:nowrap}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.check{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-weight:500}
+.hint{font-size:12px;color:var(--muted)}
+.warn-box{border:var(--border);border-left-width:6px;border-left-color:var(--warn);background:var(--paper-2);padding:8px 10px;border-radius:var(--r);font-size:13px;margin:8px 0}
+.ok-box{border:var(--border);border-left-width:6px;border-left-color:var(--ok);background:var(--paper-2);padding:8px 10px;border-radius:var(--r);font-size:13px;margin:8px 0}
+.toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px}
+.toggle input{appearance:none;-webkit-appearance:none;width:38px;height:22px;border:var(--border);border-radius:999px;position:relative;background:var(--card);cursor:pointer;margin:0;flex-shrink:0}
+.toggle input::after{content:'';position:absolute;top:3px;left:3px;width:13px;height:13px;border-radius:50%;background:var(--ink);transition:left .15s}
+.toggle input:checked{background:var(--accent)}
+.toggle input:checked::after{left:19px}
+
+/* ---------- header ---------- */
+.demo-bar{background:var(--warn);color:#1A1438;text-align:center;font-size:12px;font-weight:700;padding:4px 10px}
+.topbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--paper);border-bottom:var(--border);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand img{width:38px;height:38px;border-radius:9px;border:var(--border);flex-shrink:0}
+.month-title{font-family:var(--font-serif);font-size:28px;font-weight:600;line-height:1;letter-spacing:-.01em;white-space:nowrap;text-transform:capitalize}
+.month-title span{font-style:italic;font-weight:400;color:var(--muted)}
+.clock{font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted);font-weight:600;margin-top:3px}
+.nav{display:flex;align-items:center;gap:6px;margin-left:auto}
+.seg{display:inline-flex;border:var(--border);border-radius:999px;overflow:hidden;background:var(--card);box-shadow:var(--shadow)}
+.seg button{border:0;background:transparent;padding:6px 12px;cursor:pointer;font-weight:600;font-size:13px;color:var(--ink)}
+.seg button.on{background:var(--ink);color:var(--paper)}
+.tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.online{width:12px;height:12px;border-radius:50%;background:var(--ok);border:var(--border);box-shadow:var(--shadow);margin-left:6px;flex-shrink:0}
+.online.off{background:var(--danger)}
+.online.sync{background:var(--warn)}
+
+/* ---------- banner ---------- */
+.banner{display:grid;grid-template-columns:1.1fr 1.5fr .9fr;gap:10px;padding:10px 16px;border-bottom:var(--border);background:var(--paper-2)}
+.banner-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border:var(--border);border-radius:var(--r);background:var(--card);box-shadow:var(--shadow);min-width:0}
+.banner-item .big{font-size:24px;flex-shrink:0}
+.banner-item .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+.banner-item .val{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.banner-item.clickable{cursor:pointer}
+.banner-item.clickable:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--ink)}
+.quote{font-family:var(--font-serif);font-style:italic;font-size:14px;line-height:1.3}
+
+/* ---------- layout ---------- */
+.layout{display:grid;grid-template-columns:var(--sidebar-w) 1fr;align-items:start}
+.sidebar{border-right:var(--border);padding:14px;background:var(--paper);overflow-y:auto;position:sticky;top:var(--top-h);max-height:calc(100vh - var(--top-h))}
+.content{padding:14px 16px;min-width:0}
+.hamb{display:none}
+.drawer-backdrop{display:none}
+
+/* ---------- sidebar ---------- */
+.sb-section{margin-bottom:16px}
+.sb-title{font-family:var(--font-serif);font-size:16px;font-weight:600;margin:0 0 8px;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.userbox{display:flex;align-items:center;gap:10px;padding:10px;border:var(--border);border-radius:var(--r);background:var(--card);box-shadow:var(--shadow)}
+.userbox .nm{font-weight:700;font-family:var(--font-serif);font-size:17px;line-height:1.1}
+.avatar{width:40px;height:40px;border-radius:50%;border:var(--border);object-fit:cover;background:var(--paper-2);flex-shrink:0;display:block}
+.avatar.sm{width:28px;height:28px}
+.avatar.xs{width:20px;height:20px;border-width:1px}
+.avatar.lg{width:64px;height:64px}
+.role-tag{font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;padding:1px 6px;border:1px solid var(--ink);border-radius:999px;display:inline-block}
+.sb-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sb-btns .btn{justify-content:center}
+.team-item{display:flex;align-items:center;gap:8px;padding:6px;border-radius:var(--r);cursor:pointer}
+.team-item:hover{background:var(--paper-2)}
+.team-item .nm{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team-item .st{font-size:11px;color:var(--muted);white-space:nowrap}
+.color-dot{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ink);flex-shrink:0;display:inline-block}
+.upc-item{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border:var(--border);border-radius:var(--r);margin-bottom:6px;cursor:pointer;background:var(--bg,var(--card));color:var(--fg,var(--ink))}
+.upc-item:hover{box-shadow:var(--shadow)}
+.upc-item .when{font-size:11px;opacity:.8;white-space:nowrap}
+.upc-item .t{font-weight:600;font-size:13px;line-height:1.25}
+.summary-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px}
+.summary-row .nm{width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.summary-row .bar{flex:1;height:12px;border:var(--border);border-radius:4px;background:var(--card);overflow:hidden}
+.summary-row .bar>i{display:block;height:100%;background:var(--bg,var(--ink))}
+.summary-row .n{width:22px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.kudo{padding:8px 10px;border:var(--border);border-radius:var(--r);background:var(--card);margin-bottom:6px;font-size:13px;box-shadow:var(--shadow)}
+.kudo .meta{font-size:11px;color:var(--muted);margin-top:3px}
+.status-picker{display:flex;flex-wrap:wrap;gap:4px}
+.status-picker .btn{padding:4px 8px;font-size:12px;box-shadow:none}
+.search-wrap{position:relative}
+.search-results{position:absolute;left:0;right:0;top:100%;z-index:20;background:var(--card);border:var(--border);border-radius:var(--r);box-shadow:var(--shadow-lg);max-height:260px;overflow:auto;margin-top:4px}
+.search-results div{padding:6px 10px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--paper-2)}
+.search-results div:hover{background:var(--paper-2)}
+
+/* ---------- vista mês ---------- */
+.view-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.view-head h2{margin:0;font-size:20px}
+.month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:var(--border);border-radius:var(--r);overflow:hidden;background:var(--line);gap:var(--bw);box-shadow:var(--shadow-lg)}
+.dow{background:var(--paper-2);padding:6px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.cell{background:var(--card);min-height:120px;padding:4px;display:flex;flex-direction:column;gap:3px;cursor:pointer;position:relative;min-width:0}
+.cell:hover{background:var(--paper-2)}
+.cell.other{background:var(--paper);color:var(--muted)}
+.cell.other .ev{opacity:.7}
+.cell.hol .daynum .n{color:var(--danger)}
+.cell.today .daynum .n{background:var(--ink);color:var(--paper)}
+.daynum{display:flex;align-items:center;gap:4px;font-weight:700;font-size:13px;min-width:0}
+.daynum .n{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0}
+.daynum .hol{font-size:10px;color:var(--danger);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:2px}
+.chip{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:1px 6px;border:1px solid var(--ink);border-radius:999px;background:var(--bg,var(--paper-2));color:var(--fg,var(--ink));white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.ev{display:flex;align-items:center;gap:4px;font-size:11px;padding:2px 5px;border:1px solid var(--ink);border-radius:4px;background:var(--bg,var(--card));color:var(--fg,var(--ink));cursor:pointer;overflow:hidden;white-space:nowrap;box-shadow:1px 1px 0 var(--ink);line-height:1.3;min-width:0}
+.ev:hover{transform:translate(-1px,-1px);box-shadow:2px 2px 0 var(--ink)}
+.ev .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ev .hh{opacity:.85;font-variant-numeric:tabular-nums;flex-shrink:0;font-size:10px}
+.ev .ico{flex-shrink:0}
+.ev.done{opacity:.55}
+.ev.done .t{text-decoration:line-through}
+.ev.pin{border-width:2px}
+.more{font-size:11px;color:var(--muted);font-weight:700;padding:0 4px}
+
+/* ---------- linha do tempo (semana / dia) ---------- */
+.tl{border:var(--border);border-radius:var(--r);background:var(--card);box-shadow:var(--shadow-lg);overflow:hidden;--cols:7}
+.tl-head,.tl-allday,.tl-body{display:grid;grid-template-columns:56px repeat(var(--cols),minmax(0,1fr))}
+.tl-head{border-bottom:var(--border);background:var(--paper-2)}
+.tl-head>div{padding:6px 4px;text-align:center;font-size:11px;font-weight:700;border-left:1px solid var(--ink);text-transform:uppercase;letter-spacing:.04em;cursor:pointer;min-width:0}
+.tl-head>div:first-child{border-left:0;cursor:default}
+.tl-head>div.today{background:var(--ink);color:var(--paper)}
+.tl-head .dnum{font-family:var(--font-serif);font-size:18px;display:block;text-transform:none;letter-spacing:0}
+.tl-head .hol{display:block;font-size:9px;color:var(--danger);text-transform:none;letter-spacing:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-head>div.today .hol{color:var(--paper)}
+.tl-allday{border-bottom:var(--border);min-height:34px}
+.tl-allday>div{padding:3px;border-left:1px solid var(--ink);display:flex;flex-direction:column;gap:2px;min-width:0}
+.tl-allday>div:first-child{border-left:0;font-size:10px;color:var(--muted);align-items:center;justify-content:center;text-transform:uppercase;font-weight:700}
+.tl-body{max-height:calc(100vh - 300px);overflow:auto;position:relative}
+.tl-hours{display:flex;flex-direction:column}
+.tl-hours div{height:var(--hour-h);font-size:11px;color:var(--muted);text-align:right;padding:2px 6px 0 0;font-variant-numeric:tabular-nums}
+.tl-col{position:relative;border-left:1px solid var(--ink);background-image:linear-gradient(to bottom,var(--paper-2) 1px,transparent 1px);background-size:100% var(--hour-h);cursor:pointer;min-width:0}
+.tl-col.today{background-color:rgba(91,155,239,.08)}
+.tl-ev{position:absolute;border:1px solid var(--ink);border-radius:4px;padding:3px 6px;font-size:11px;overflow:hidden;background:var(--bg,var(--card));color:var(--fg,var(--ink));box-shadow:1px 1px 0 var(--ink);cursor:pointer;line-height:1.25;min-width:0}
+.tl-ev:hover{z-index:3;box-shadow:2px 2px 0 var(--ink)}
+.tl-ev .t{font-weight:700;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-ev .hh{opacity:.85;font-size:10px}
+.tl-now{position:absolute;left:0;right:0;height:2px;background:var(--danger);z-index:2;pointer-events:none}
+.tl-now::before{content:'';position:absolute;left:-4px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--danger)}
+.day-extra{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+
+/* ---------- modais ---------- */
+.modal-backdrop{position:fixed;inset:0;background:rgba(26,20,56,.5);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow-y:auto}
+.modal{background:var(--paper);border:var(--border);border-radius:8px;box-shadow:var(--shadow-lg);width:100%;max-width:720px;margin:auto 0;animation:pop .12s ease-out}
+.modal.wide{max-width:980px}
+.modal.narrow{max-width:460px}
+@keyframes pop{from{transform:translateY(6px);opacity:.5}to{transform:none;opacity:1}}
+.modal-head{display:flex;align-items:flex-start;gap:10px;padding:14px 16px;border-bottom:var(--border);position:sticky;top:0;background:var(--paper);z-index:2;border-radius:8px 8px 0 0}
+.modal-head h2{font-size:22px;margin:0;line-height:1.15;flex:1;min-width:0}
+.modal-head .sub{font-size:12px;color:var(--muted);margin-top:3px;font-weight:400;font-family:var(--font-ui)}
+.modal-body{padding:14px 16px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tab{padding:6px 12px;border:var(--border);border-radius:999px;background:var(--card);cursor:pointer;font-weight:600;font-size:13px;box-shadow:var(--shadow)}
+.tab.on{background:var(--ink);color:var(--paper)}
+.tabpane{display:none}
+.tabpane.on{display:block}
+.section{border:var(--border);border-radius:var(--r);background:var(--card);padding:12px;margin-bottom:12px}
+.section h3{font-size:17px;margin:0 0 8px;display:flex;align-items:center;gap:6px}
+.section h3 .right{font-family:var(--font-ui);font-size:12px;font-weight:600}
+.list-ev{display:flex;flex-direction:column;gap:6px}
+.list-ev .item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:var(--border);border-radius:var(--r);cursor:pointer;background:var(--bg,var(--card));color:var(--fg,var(--ink))}
+.list-ev .item:hover{box-shadow:var(--shadow)}
+.list-ev .item .t{font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list-ev .item .hh{font-size:12px;opacity:.85;font-variant-numeric:tabular-nums;white-space:nowrap}
+.empty{color:var(--muted);font-style:italic;font-family:var(--font-serif);padding:8px 0;font-size:14px}
+.person-chip{display:inline-flex;align-items:center;gap:5px;padding:2px 8px 2px 3px;border:1px solid var(--ink);border-radius:999px;font-size:12px;font-weight:600;background:var(--bg,var(--paper-2));color:var(--fg,var(--ink));white-space:nowrap}
+.person-chip.todos{background:var(--todos);color:var(--todos-ink)}
+.task-row{display:grid;grid-template-columns:1.1fr .8fr 1.5fr auto;gap:6px;align-items:start;margin-bottom:8px;padding:8px;border:1px solid var(--ink);border-radius:var(--r);background:var(--paper-2)}
+.task-row .role-wrap{grid-column:1/-1}
+.role-chips{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 0}
+.role-chips .chip{cursor:pointer;font-size:11px;padding:3px 8px;background:var(--card)}
+.role-chips .chip:hover,.role-chips .chip.on{background:var(--ink);color:var(--paper)}
+.templates{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.task-list{display:flex;flex-direction:column;gap:4px}
+.task-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--ink);border-radius:var(--r);background:var(--card);font-size:13px}
+.task-item.done{opacity:.6}
+.task-item.done .tx{text-decoration:line-through}
+.task-item input[type=checkbox]{width:18px;height:18px;flex-shrink:0}
+.task-item .tx{flex:1;min-width:0}
+.task-item .meta{font-size:11px;color:var(--muted);white-space:nowrap}
+.rsvp-btns{display:flex;gap:6px;flex-wrap:wrap}
+.rsvp-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.comment{padding:8px 10px;border:1px solid var(--ink);border-radius:var(--r);background:var(--card);margin-bottom:6px;font-size:13px}
+.comment .meta{font-size:11px;color:var(--muted);margin-bottom:2px;display:flex;align-items:center;gap:6px}
+.mention{background:var(--accent);color:#1A1438;padding:0 3px;border-radius:3px;font-weight:600}
+.ev-meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;margin:8px 0}
+.ev-meta span{display:inline-flex;align-items:center;gap:4px}
+.ev-desc{white-space:pre-wrap;font-size:13px;line-height:1.5}
+.req-item{padding:10px;border:var(--border);border-radius:var(--r);background:var(--card);margin-bottom:8px;font-size:13px}
+.req-item .st{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.st.pendente{color:var(--warn)} .st.aceita{color:var(--ok)} .st.recusada{color:var(--danger)}
+.msg-layout{display:grid;grid-template-columns:200px 1fr;gap:10px;min-height:380px}
+.msg-people{border:var(--border);border-radius:var(--r);background:var(--card);overflow:auto;padding:4px}
+.msg-people .team-item.on{background:var(--ink);color:var(--paper)}
+.msg-people .team-item.on .st{color:var(--paper)}
+.msg-thread{display:flex;flex-direction:column;border:var(--border);border-radius:var(--r);background:var(--card);min-height:380px}
+.msg-scroll{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:6px;max-height:380px}
+.bubble{max-width:82%;padding:6px 10px;border:1px solid var(--ink);border-radius:10px;font-size:13px;background:var(--paper-2);align-self:flex-start;word-break:break-word}
+.bubble.me{align-self:flex-end;background:var(--accent);color:#1A1438}
+.bubble .meta{font-size:10px;opacity:.7;margin-top:2px}
+.msg-input{display:flex;gap:6px;padding:8px;border-top:var(--border)}
+.bar-row{display:grid;grid-template-columns:110px 1fr 36px;align-items:center;gap:8px;margin-bottom:6px;font-size:13px}
+.bar-row .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;display:flex;align-items:center;gap:6px}
+.bar-row .bar{height:18px;border:var(--border);border-radius:4px;background:var(--card);overflow:hidden}
+.bar-row .bar>i{display:block;height:100%;background:var(--bg,var(--ink));border-right:var(--border);border-radius:0 4px 4px 0;min-width:2px}
+.bar-row .bar>i.zero{display:none}
+.bar-row .n{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.heat{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.heat div{border:var(--border);border-radius:var(--r);padding:8px 4px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:var(--card)}
+.heat div b{display:block;font-size:18px;font-family:var(--font-serif);text-transform:none;letter-spacing:0}
+.hist-item{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--paper-2);font-size:13px;align-items:flex-start}
+.hist-item .when{color:var(--muted);font-size:11px;white-space:nowrap;min-width:96px;padding-top:2px}
+.stat-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px}
+.tile{border:var(--border);border-radius:var(--r);background:var(--card);padding:10px;box-shadow:var(--shadow)}
+.tile b{display:block;font-family:var(--font-serif);font-size:26px;line-height:1;font-weight:600}
+.tile span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+.table{width:100%;border-collapse:collapse;font-size:13px}
+.table th,.table td{border:1px solid var(--ink);padding:6px 8px;text-align:left}
+.table th{background:var(--paper-2);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.wx-card{border:var(--border);border-radius:var(--r);background:var(--card);padding:10px;margin-bottom:10px;box-shadow:var(--shadow)}
+.wx-now{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.wx-now .big{font-size:40px}
+.wx-now .temp{font-family:var(--font-serif);font-size:32px;font-weight:600;line-height:1}
+.wx-days{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.wx-days div{text-align:center;font-size:11px;border:1px solid var(--ink);border-radius:var(--r);padding:6px 2px;background:var(--paper-2)}
+.wx-days .i{font-size:20px;display:block}
+.people-pick{display:flex;flex-wrap:wrap;gap:6px}
+.people-pick label{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 5px;border:var(--border);border-radius:999px;cursor:pointer;background:var(--card);font-weight:600;font-size:13px}
+.people-pick label.on{background:var(--ink);color:var(--paper)}
+.icon-pick{display:flex;flex-wrap:wrap;gap:4px}
+.icon-pick button{width:34px;height:34px;border:var(--border);border-radius:var(--r);background:var(--card);cursor:pointer;font-size:17px;padding:0}
+.icon-pick button.on{background:var(--ink)}
+.prio-alta{color:var(--danger)} .prio-media{color:var(--warn)} .prio-baixa{color:var(--ok)}
+.block-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--ink);border-radius:var(--r);background:var(--card);margin-bottom:4px;font-size:13px}
+.team-edit{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:start;padding:12px;border:var(--border);border-radius:var(--r);background:var(--card);margin-bottom:10px}
+.team-edit.inactive{opacity:.6}
+.diary-hist{display:flex;flex-wrap:wrap;gap:4px}
+.diary-hist .btn{font-weight:500}
+.wc{font-size:11px;color:var(--muted);text-align:right}
+.note-view{padding:10px;border:var(--border);border-radius:var(--r);background:var(--card);font-size:13px;white-space:pre-wrap}
+
+/* ---------- toast / fx / login ---------- */
+.toast-wrap{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:300;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;width:max-content;max-width:92vw}
+.toast{background:var(--ink);color:var(--paper);padding:8px 14px;border-radius:999px;border:var(--border);box-shadow:2px 2px 0 var(--accent);font-weight:600;font-size:13px;animation:pop .15s;max-width:92vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toast.err{background:var(--danger);color:#fff}
+.toast.ok{box-shadow:2px 2px 0 var(--ok)}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:90;width:100%;height:100%}
+.login-screen{position:fixed;inset:0;z-index:200;background:var(--paper);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
+.login-card{width:100%;max-width:400px;border:var(--border);border-radius:10px;background:var(--card);box-shadow:var(--shadow-lg);padding:24px;text-align:center;margin:auto}
+.login-card img{width:72px;height:72px;border-radius:16px;border:var(--border);box-shadow:var(--shadow)}
+.login-card h1{font-size:30px;margin:10px 0 2px}
+.login-card .sub{font-family:var(--font-serif);font-style:italic;color:var(--muted);margin-bottom:14px}
+.pin-boxes{display:flex;gap:8px;justify-content:center;margin:14px 0;cursor:text}
+.pin-boxes span{width:48px;height:56px;border:var(--border);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;background:var(--paper);box-shadow:var(--shadow)}
+.pin-boxes span.on{border-width:2.5px}
+.pin-hidden{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:240px;margin:0 auto}
+.keypad .btn{justify-content:center;font-size:18px;padding:10px;border-radius:var(--r)}
+.login-msg{min-height:20px;font-size:13px;margin-top:10px;font-weight:600}
+.login-msg.err{color:var(--danger)}
+.login-msg.ok{color:var(--ok)}
+.demo-people{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.demo-people .btn{justify-content:flex-start}
+
+/* ---------- responsivo ---------- */
+@media (max-width:1100px){
+  .banner{grid-template-columns:1fr 1fr}
+  .banner-item:nth-child(2){grid-column:1/-1}
+}
+@media (max-width:900px){
+  .hamb{display:inline-flex}
+  .layout{grid-template-columns:1fr}
+  .sidebar{position:fixed;top:0;left:0;bottom:0;width:min(330px,88vw);z-index:150;transform:translateX(-105%);transition:transform .2s;max-height:none;box-shadow:var(--shadow-lg);padding-top:16px}
+  .sidebar.open{transform:none}
+  .drawer-backdrop.show{display:block;position:fixed;inset:0;background:rgba(26,20,56,.45);z-index:140}
+  .banner{grid-template-columns:1fr;padding:8px 10px}
+  .topbar{padding:8px 10px;gap:8px}
+  .month-title{font-size:20px}
+  .clock{display:none}
+  .nav{margin-left:0;width:100%;justify-content:space-between}
+  .tools{width:100%;justify-content:flex-start}
+  .tools .iconbtn{width:32px;height:32px;font-size:14px}
+  .content{padding:10px 8px}
+  .cell{min-height:84px;padding:2px}
+  .ev .hh{display:none}
+  .ev{font-size:10px;padding:1px 3px}
+  .daynum .hol{display:none}
+  .cell .chip{font-size:9px;padding:0 4px;gap:2px}
+  .cell .chips{gap:1px}
+  .msg-layout{grid-template-columns:1fr;min-height:0}
+  .msg-people{max-height:130px}
+  .task-row{grid-template-columns:1fr 1fr}
+  .grid2,.grid3{grid-template-columns:1fr}
+  .day-extra{grid-template-columns:1fr}
+  .modal-backdrop{padding:10px 6px}
+  .modal-head h2{font-size:19px}
+  .tl-body{max-height:none}
+  .bar-row{grid-template-columns:80px 1fr 32px}
+}
+
+/* ---------- impressão ---------- */
+@media print{
+  .topbar .nav,.topbar .tools,.banner,.sidebar,.hamb,.toast-wrap,#fx,.modal-backdrop,.login-screen,.demo-bar,.drawer-backdrop{display:none!important}
+  .topbar{position:static;border:0}
+  .layout{display:block}
+  .content{padding:0}
+  .month-grid,.tl,.ev,.tl-ev{box-shadow:none}
+  body{background:#fff;color:#000}
+  .cell{min-height:96px;break-inside:avoid}
+  .tl-body{max-height:none;overflow:visible}
+}
+</style>
+</head>
+<body>
+<div id="demo-bar" class="demo-bar" hidden>Modo demonstração — sem Firebase. Os dados ficam só neste navegador. Veja SETUP-FIREBASE.md para publicar de verdade.</div>
+
+<header class="topbar" id="topbar">
+  <button class="iconbtn hamb" data-act="drawer" aria-label="Abrir menu">☰</button>
+  <div class="brand">
+    <img src="logo.png" alt="Logística">
+    <div>
+      <div class="month-title" id="month-title">—</div>
+      <div class="clock" id="clock">--:--:--</div>
+    </div>
+  </div>
+  <div class="nav">
+    <button class="btn btn-sm" data-act="prev" aria-label="Anterior">←</button>
+    <button class="btn btn-sm" data-act="today">Hoje</button>
+    <button class="btn btn-sm" data-act="next" aria-label="Próximo">→</button>
+    <div class="seg" id="view-seg">
+      <button data-act="view" data-view="month" class="on">Mês</button>
+      <button data-act="view" data-view="week">Semana</button>
+      <button data-act="view" data-view="day">Dia</button>
+    </div>
+  </div>
+  <div class="tools">
+    <button class="iconbtn" data-act="team-status" title="Status da equipe hoje" aria-label="Status da equipe">👥</button>
+    <button class="iconbtn" data-act="insights" title="Insights do mês" aria-label="Insights">📊</button>
+    <button class="iconbtn" data-act="history" title="Histórico de ações" aria-label="Histórico">🕘</button>
+    <button class="iconbtn" data-act="requests" title="Solicitações" aria-label="Solicitações">📨<span class="badge" id="badge-req"></span></button>
+    <button class="iconbtn" data-act="theme" id="btn-theme" title="Tema claro/escuro" aria-label="Tema">🌙</button>
+    <button class="iconbtn" data-act="prefs" title="Preferências" aria-label="Preferências">⚙️</button>
+    <button class="iconbtn" data-act="print" title="Imprimir / PDF" aria-label="Imprimir">🖨️</button>
+    <button class="iconbtn" data-act="backup" title="Backup JSON" aria-label="Backup">💾</button>
+    <span class="online" id="online-dot" title="Online"></span>
+  </div>
+</header>
+
+<div class="banner">
+  <div class="banner-item clickable" data-act="banner-next" id="banner-next">
+    <span class="big">📌</span>
+    <div class="flex1"><div class="lbl">Próximo compromisso</div><div class="val" id="next-val">—</div></div>
+  </div>
+  <div class="banner-item">
+    <span class="big">💬</span>
+    <div class="flex1"><div class="lbl">Frase do dia</div><div class="quote" id="quote">—</div></div>
+  </div>
+  <div class="banner-item clickable" data-act="weather" id="banner-weather" title="Ver previsão de todas as cidades">
+    <span class="big" id="wx-ico">🌤️</span>
+    <div class="flex1"><div class="lbl">Clima</div><div class="val" id="wx-val">carregando…</div></div>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-section" id="sb-user"></div>
+
+    <div class="sb-section">
+      <label class="toggle"><input type="checkbox" id="only-mine" data-change="only-mine"> Só os meus</label>
+    </div>
+
+    <div class="sb-section search-wrap">
+      <input class="input" id="search" placeholder="🔍 Buscar evento, local, descrição…" autocomplete="off" data-input="search">
+      <div class="search-results" id="search-results" hidden></div>
+    </div>
+
+    <div class="sb-section" id="sb-status"></div>
+
+    <div class="sb-section">
+      <div class="sb-btns">
+        <button class="btn" data-act="my-day">☀️ Meu dia</button>
+        <button class="btn" data-act="messages">💬 Mensagens<span class="badge" id="badge-msg"></span></button>
+        <button class="btn" data-act="kudos">🌟 Elogios<span class="badge" id="badge-kudos"></span></button>
+        <button class="btn" data-act="diary">📓 Diário</button>
+        <button class="btn" data-act="req-meeting">📞 Solicitar reunião</button>
+        <button class="btn" data-act="requests">📨 Solicitações<span class="badge" id="badge-req2"></span></button>
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-title">Equipe <span id="sb-team-btn"></span></div>
+      <div id="sb-team"></div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-title">Próximos compromissos</div>
+      <div id="sb-upcoming"></div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-title">Resumo do mês</div>
+      <div id="sb-summary"></div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-title">Mural de elogios <button class="btn btn-xs" data-act="kudos">+ elogiar</button></div>
+      <div id="sb-kudos"></div>
+    </div>
+  </aside>
+  <div class="drawer-backdrop" id="drawer-backdrop" data-act="drawer-close"></div>
+  <main class="content" id="content"></main>
+</div>
+
+<div id="modal-root"></div>
+<div class="toast-wrap" id="toast-wrap"></div>
+<canvas id="fx" hidden></canvas>
+<div class="login-screen" id="login-screen" hidden></div>
+<style id="team-colors"></style>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+ * 1. CONFIGURAÇÃO DO FIREBASE
+ * Cole aqui as credenciais do projeto NOVO (Console → Configurações do
+ * projeto → Seus apps → Web → firebaseConfig). O passo a passo está em
+ * SETUP-FIREBASE.md. Enquanto os valores começarem com "COLE_AQUI", o app
+ * sobe em MODO DEMONSTRAÇÃO: sem login por PIN e com dados só no navegador.
+ * ===================================================================== */
+const FIREBASE_CONFIG = {
+  apiKey:            'COLE_AQUI_apiKey',
+  authDomain:        'COLE_AQUI_authDomain',        // ex.: calendario-logistica.firebaseapp.com
+  projectId:         'COLE_AQUI_projectId',         // ex.: calendario-logistica
+  storageBucket:     'COLE_AQUI_storageBucket',     // ex.: calendario-logistica.appspot.com
+  messagingSenderId: 'COLE_AQUI_messagingSenderId', // só números
+  appId:             'COLE_AQUI_appId'              // ex.: 1:1234567890:web:abcdef
+};
+
+const COLLECTION   = 'logisticaData';   // collection NOVA — não misturar com o outro calendário
+const PIN_SUFFIX   = 'lg';              // senha do Firebase Auth = PIN + sufixo ('1234' -> '1234lg')
+const EMAIL_DOMAIN = 'logistica.cal';   // emails internos, nunca recebem nada
+const APP_VERSION  = '1.0.0';
+const DEMO = /COLE_AQUI/.test(FIREBASE_CONFIG.apiKey) || new URLSearchParams(location.search).has('demo');
+
+/* =====================================================================
+ * 2. EQUIPE (semente). Depois que o gestor mexer na equipe, vale o que
+ * está em state.equipe. Eventos referenciam a pessoa pela CHAVE
+ * (collab:'ludmylla'), nunca pelo nome — por isso a chave nunca muda.
+ * ===================================================================== */
+const SEED_EQUIPE = {
+  alberto:  { nome:'Alberto',  cor:'#5B9BEF', foto:'fotos/alberto.jpg',  cidade:'São Paulo', email:'alberto@logistica.cal',  ativo:true, role:'admin'  },
+  ludmylla: { nome:'Ludmylla', cor:'#F27DAD', foto:'fotos/ludmylla.jpg', cidade:'Campinas',  email:'ludmylla@logistica.cal', ativo:true, role:'viewer' },
+  rosilene: { nome:'Rosilene', cor:'#5FCB6A', foto:'fotos/rosilene.jpg', cidade:'Guarulhos', email:'rosilene@logistica.cal', ativo:true, role:'viewer' }
+};
+
+const EVENT_TYPES = {
+  entrega:      { label:'Entrega',      ico:'📦' },
+  coleta:       { label:'Coleta',       ico:'📥' },
+  rota:         { label:'Rota',         ico:'🚚' },
+  carregamento: { label:'Carregamento', ico:'🏗️' },
+  inventario:   { label:'Inventário',   ico:'📋' },
+  manutencao:   { label:'Manutenção',   ico:'🔧' },
+  reuniao:      { label:'Reunião',      ico:'📞' },
+  treinamento:  { label:'Treinamento',  ico:'📚' },
+  viagem:       { label:'Viagem',       ico:'✈️' },
+  folga:        { label:'Folga',        ico:'🌴' },
+  aniversario:  { label:'Aniversário',  ico:'🎂' },
+  tarefa:       { label:'Tarefa',       ico:'✅' },  // criada pela aba Tarefa, não aparece no seletor
+  outro:        { label:'Outro',        ico:'✦' }
+};
+
+const ROLE_SHORTCUTS = [
+  { ico:'🚚', label:'Rota' }, { ico:'📦', label:'Separação' }, { ico:'🔍', label:'Conferência' },
+  { ico:'🏗️', label:'Carregamento' }, { ico:'📤', label:'Expedição' }, { ico:'📋', label:'Inventário' },
+  { ico:'⭐', label:'Responsável' }
+];
+
+// Modelos prontos: um clique preenche o formulário de evento.
+const TEMPLATES = {
+  rotaDiaria:  { nome:'🚚 Rota Diária',           title:'Rota diária',          type:'rota',         start:'07:00', end:'12:00', role:'Rota',         priority:'media', recur:'daily',   count:5,  desc:'Rota de entregas do dia.' },
+  coleta:      { nome:'📥 Coleta Programada',     title:'Coleta programada',    type:'coleta',       start:'14:00', end:'16:00', role:'Rota',         priority:'media', recur:'none',    count:1,  desc:'Coleta agendada com o fornecedor.' },
+  inventario:  { nome:'📋 Inventário Mensal',     title:'Inventário mensal',    type:'inventario',   start:'08:00', end:'17:00', role:'Inventário',   priority:'alta',  recur:'monthly', count:3,  desc:'Contagem geral do estoque.' },
+  manutencao:  { nome:'🔧 Manutenção Preventiva', title:'Manutenção preventiva',type:'manutencao',   start:'09:00', end:'11:00', role:'Responsável',  priority:'media', recur:'monthly', count:6,  desc:'Checklist preventivo da frota/equipamentos.' }
+};
+
+const DAY_STATUS = {
+  cd:      { label:'No CD',       ico:'🏭' },
+  rota:    { label:'Em rota',     ico:'🚚' },
+  estrada: { label:'Na estrada',  ico:'🛣️' },
+  home:    { label:'Home office', ico:'🏠' },
+  folga:   { label:'Folga',       ico:'🌴' }
+};
+const PRIORITIES = { baixa:{ label:'Baixa', ico:'🟢' }, media:{ label:'Média', ico:'🟡' }, alta:{ label:'Alta', ico:'🔴' } };
+const NOTE_ICONS = ['📝','⭐','⚠️','💡','✅','🔥','📦','🚚','💤','🎯'];
+const HOUR_START = 6, HOUR_END = 22;   // faixa das vistas semana/dia
+
+const WEEKDAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const WEEKDAYS_LONG = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+const MONTHS = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+
+// Feriados nacionais 2026–2028 (Carnaval e Corpus Christi incluídos por serem
+// tratados como folga na prática, mesmo sendo ponto facultativo).
+const HOLIDAYS = {
+  '2026-01-01':'Confraternização Universal','2026-02-16':'Carnaval','2026-02-17':'Carnaval','2026-04-03':'Sexta-feira Santa',
+  '2026-04-21':'Tiradentes','2026-05-01':'Dia do Trabalho','2026-06-04':'Corpus Christi','2026-09-07':'Independência do Brasil',
+  '2026-10-12':'Nossa Senhora Aparecida','2026-11-02':'Finados','2026-11-15':'Proclamação da República','2026-11-20':'Consciência Negra','2026-12-25':'Natal',
+  '2027-01-01':'Confraternização Universal','2027-02-08':'Carnaval','2027-02-09':'Carnaval','2027-03-26':'Sexta-feira Santa',
+  '2027-04-21':'Tiradentes','2027-05-01':'Dia do Trabalho','2027-05-27':'Corpus Christi','2027-09-07':'Independência do Brasil',
+  '2027-10-12':'Nossa Senhora Aparecida','2027-11-02':'Finados','2027-11-15':'Proclamação da República','2027-11-20':'Consciência Negra','2027-12-25':'Natal',
+  '2028-01-01':'Confraternização Universal','2028-02-28':'Carnaval','2028-02-29':'Carnaval','2028-04-14':'Sexta-feira Santa',
+  '2028-04-21':'Tiradentes','2028-05-01':'Dia do Trabalho','2028-06-15':'Corpus Christi','2028-09-07':'Independência do Brasil',
+  '2028-10-12':'Nossa Senhora Aparecida','2028-11-02':'Finados','2028-11-15':'Proclamação da República','2028-11-20':'Consciência Negra','2028-12-25':'Natal'
+};
+
+const QUOTES = [
+  'Logística é fazer o certo chegar ao lugar certo, na hora certa.',
+  'Planejar é trazer o futuro para o presente, para fazer algo a respeito agora. — Alan Lakein',
+  'Sozinhos vamos mais rápido; juntos vamos mais longe.',
+  'Feito é melhor que perfeito.',
+  'A qualidade nunca é um acidente; é sempre o resultado de um esforço inteligente. — John Ruskin',
+  'Cada entrega é uma promessa cumprida.',
+  'O segredo de avançar é começar. — Mark Twain',
+  'Rota clara, dia leve.',
+  'Organização é o que fazemos antes de fazer alguma coisa, para que não vire bagunça. — A. A. Milne',
+  'Não conte os dias; faça os dias contarem. — Muhammad Ali',
+  'Um bom time é como uma boa carga: bem distribuída, chega inteira.',
+  'Simplicidade é a sofisticação máxima. — Leonardo da Vinci',
+  'Se quer ir depressa, prepare a estrada antes.',
+  'A disciplina é a ponte entre metas e realizações. — Jim Rohn',
+  'Nada é particularmente difícil se você dividir em pequenas tarefas. — Henry Ford',
+  'Cuide dos detalhes: a entrega inteira depende deles.',
+  'A melhor forma de prever o futuro é criá-lo. — Peter Drucker',
+  'Comece onde você está, use o que você tem, faça o que você pode. — Arthur Ashe',
+  'Cada conferência bem feita evita uma dor de cabeça amanhã.',
+  'Confiança se constrói entrega a entrega.',
+  'Ordem no galpão, paz na expedição.',
+  'A pressa é inimiga da conferência.',
+  'Sucesso é a soma de pequenos esforços repetidos dia após dia. — Robert Collier',
+  'Trabalho em equipe faz o sonho funcionar.',
+  'Um bom plano hoje vale mais que um plano perfeito amanhã. — George S. Patton',
+  'Quem cuida da rota, chega.',
+  'Descanso também faz parte da operação.',
+  'Comunicação clara é meia entrega feita.',
+  'O que se mede, melhora.',
+  'Grandes resultados nascem de rotinas bem feitas.'
+];
+
+// Códigos WMO do Open-Meteo → ícone + descrição.
+const WMO = {
+  0:['☀️','Céu limpo'],1:['🌤️','Quase limpo'],2:['⛅','Parcialmente nublado'],3:['☁️','Nublado'],
+  45:['🌫️','Nevoeiro'],48:['🌫️','Nevoeiro com geada'],51:['🌦️','Garoa fraca'],53:['🌦️','Garoa'],55:['🌧️','Garoa forte'],
+  56:['🌧️','Garoa congelante'],57:['🌧️','Garoa congelante'],61:['🌧️','Chuva fraca'],63:['🌧️','Chuva'],65:['🌧️','Chuva forte'],
+  66:['🌧️','Chuva congelante'],67:['🌧️','Chuva congelante'],71:['🌨️','Neve fraca'],73:['🌨️','Neve'],75:['🌨️','Neve forte'],77:['🌨️','Granizo fino'],
+  80:['🌦️','Pancadas fracas'],81:['🌧️','Pancadas de chuva'],82:['⛈️','Pancadas fortes'],85:['🌨️','Pancadas de neve'],86:['🌨️','Pancadas de neve'],
+  95:['⛈️','Trovoada'],96:['⛈️','Trovoada com granizo'],99:['⛈️','Trovoada com granizo']
+};
+
+/* Chaves do estado — cada uma vira um documento em logisticaData/<chave>. */
+const STATE_KEYS = ['events','statuses','history','customColors','birthdays','requests','notes','priorities','diary',
+                    'blocks','reminders','kudos','messages','folgas','userPriorities','equipe','equipeFotos'];
+const DEFAULTS = {
+  events:[], statuses:{}, history:[], customColors:{}, birthdays:{}, requests:[], notes:{}, priorities:{}, diary:{},
+  blocks:{}, reminders:[], kudos:[], messages:[], folgas:[], userPriorities:{}, equipe:{}, equipeFotos:{}
+};
+
+/* =====================================================================
+ * 3. UTILITÁRIOS
+ * ===================================================================== */
+const $  = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const pad2 = n => String(n).padStart(2, '0');
+const clone = o => JSON.parse(JSON.stringify(o));
+const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const parseYmd = s => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, m - 1, d); };
+const todayYmd = () => ymd(new Date());
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const addDaysYmd = (s, n) => ymd(addDays(parseYmd(s), n));
+const monthStart = d => new Date(d.getFullYear(), d.getMonth(), 1);
+const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
+const startOfWeek = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() - ui.weekStart + 7) % 7)); return x; };
+const fmtLong = d => `${WEEKDAYS_LONG[d.getDay()]}, ${d.getDate()} de ${MONTHS[d.getMonth()]} de ${d.getFullYear()}`;
+const fmtDM = s => { const d = parseYmd(s); return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`; };
+const fmtDMY = s => { const d = parseYmd(s); return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`; };
+const fmtWD = s => { const d = parseYmd(s); return `${WEEKDAYS[d.getDay()]} ${fmtDM(s)}`; };
+const fmtWhen = ts => { const d = new Date(ts); return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+const minutesOf = hhmm => { const [h, m] = String(hhmm || '00:00').split(':').map(Number); return h * 60 + (m || 0); };
+const capitalize = s => s.charAt(0).toUpperCase() + s.slice(1);
+const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const slug = s => norm(s).replace(/[^a-z0-9]+/g, '').slice(0, 20) || 'pessoa';
+const safeUrl = u => /^https?:\/\/\S+$/i.test(String(u || '').trim()) ? String(u).trim() : '';
+const dayOfYear = d => Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 864e5);
+const typeOf = ev => EVENT_TYPES[ev.type] || EVENT_TYPES.outro;
+const isHoliday = s => HOLIDAYS[s] || '';
+const isWeekend = s => { const w = parseYmd(s).getDay(); return w === 0 || w === 6; };
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+// Data/hora de início de um evento (evento sem hora conta como 08:00, pra ordenação e lembretes).
+function eventStart(ev) {
+  const d = parseYmd(ev.date);
+  const [h, m] = (ev.allDay || !ev.start ? '08:00' : ev.start).split(':').map(Number);
+  d.setHours(h, m || 0, 0, 0);
+  return d;
+}
+function relTime(date) {
+  const diff = date - Date.now(), min = Math.round(diff / 6e4);
+  if (min < -1) return 'em andamento';
+  if (min < 60) return `em ${Math.max(min, 1)} min`;
+  const h = Math.round(min / 60);
+  if (h < 24 && ymd(date) === todayYmd()) return `em ${h} h`;
+  if (ymd(date) === addDaysYmd(todayYmd(), 1)) return 'amanhã';
+  const days = Math.round((parseYmd(ymd(date)) - parseYmd(todayYmd())) / 864e5);
+  return `em ${days} dias`;
+}
+
+// ---- cor: o app calcula a tinta (texto) a partir do fundo, pra qualquer cor ----
+function hexToRgb(hex) {
+  const h = String(hex || '#888888').replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function luminance(hex) {
+  const [r, g, b] = hexToRgb(hex).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function contrastRatio(a, b) { const la = luminance(a), lb = luminance(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); }
+// escolhe entre a tinta roxa e o creme: o que der mais contraste sobre a cor da pessoa
+const inkFor = hex => contrastRatio(hex, '#1A1438') >= contrastRatio(hex, '#FBF8F1') ? '#1A1438' : '#FBF8F1';
+
+async function sha256(text) {
+  if (!(window.crypto && crypto.subtle)) throw new Error('Este navegador não suporta SHA-256 (precisa de HTTPS).');
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Texto de comentário: escapa tudo e só depois realça as menções @nome.
+function richText(text) {
+  return esc(text).replace(/(^|\s)@([\wÀ-ÿ]+)/g, (m, pre, name) => `${pre}<span class="mention">@${name}</span>`);
+}
+function mentions(text, key) {
+  const p = getEquipe()[key]; if (!p) return false;
+  const re = new RegExp(`@(${key}|${norm(p.nome)})\\b`, 'i');
+  return re.test(norm(text));
+}
+
+/* =====================================================================
+ * 4. ESTADO, SESSÃO E PREFERÊNCIAS LOCAIS
+ * Tema e modo festivo são por dispositivo (localStorage) e não sincronizam.
+ * ===================================================================== */
+function lsGet(k, def) { try { const v = localStorage.getItem(k); return v == null ? def : v; } catch (e) { return def; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+const state = clone(DEFAULTS);
+const session = { user: null };
+const ui = {
+  view: 'month', cursor: new Date(), onlyMine: false, search: '',
+  theme: document.documentElement.getAttribute('data-theme') || 'light',
+  festivo: lsGet('lg_festivo', '1') === '1',
+  weekStart: Number(lsGet('lg_weekStart', '0')) || 0,
+  ready: false, online: navigator.onLine, firstSnapshot: true,
+  modals: []
+};
+
+/* =====================================================================
+ * 5. PERSISTÊNCIA — Firestore é a fonte da verdade, localStorage é cache.
+ * Cada chave do estado = um documento logisticaData/<chave>, com o JSON
+ * stringificado em "value". Leitura cai pro cache se o Firestore falhar.
+ * Gravação: se falhar OU demorar demais (o SDK offline simplesmente
+ * segura a promise, sem rejeitar), a chave entra na offlineQueue.
+ * ===================================================================== */
+let db = null, auth = null, secondaryApp = null;
+const HAS_FIREBASE = !DEMO && typeof firebase !== 'undefined';
+if (HAS_FIREBASE) {
+  try { firebase.initializeApp(FIREBASE_CONFIG); db = firebase.firestore(); auth = firebase.auth(); }
+  catch (e) { console.error('Firebase não inicializou', e); }
+}
+const cache = { get: k => lsGet('lg_data_' + k, null), set: (k, v) => lsSet('lg_data_' + k, v) };
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+
+window.storage = {
+  async get(key) {
+    if (!db) return cache.get(key);
+    try {
+      const snap = await withTimeout(db.collection(COLLECTION).doc(key).get(), 8000);
+      if (snap.exists) { const v = snap.data().value; cache.set(key, v); return v; }
+      return cache.get(key);
+    } catch (e) { return cache.get(key); }
+  },
+  async set(key, value) {
+    const str = typeof value === 'string' ? value : JSON.stringify(value);
+    cache.set(key, str);
+    if (!db) return true;
+    try {
+      await withTimeout(db.collection(COLLECTION).doc(key).set({ value: str, updatedAt: Date.now(), updatedBy: session.user || null }), 8000);
+      queueRemove(key); setOnline(true); return true;
+    } catch (e) {
+      // permissão negada não é "offline": avisar e não enfileirar, senão fica tentando pra sempre
+      if (e && e.code === 'permission-denied') { toast('Sem permissão para salvar. Entre de novo.', 'err'); return false; }
+      queueAdd(key); setOnline(false); return false;
+    }
+  }
+};
+function getQueue() { try { return JSON.parse(lsGet('offlineQueue', '[]')) || []; } catch (e) { return []; } }
+function queueAdd(key) { const q = getQueue(); if (!q.includes(key)) q.push(key); lsSet('offlineQueue', JSON.stringify(q)); }
+function queueRemove(key) { lsSet('offlineQueue', JSON.stringify(getQueue().filter(k => k !== key))); }
+let flushing = false;
+async function flushQueue() {
+  const q = getQueue(); if (!q.length || flushing || !db || !session.user) return;
+  flushing = true; setOnline('sync');
+  for (const key of q) await window.storage.set(key, state[key]);
+  flushing = false;
+  if (!getQueue().length) { setOnline(true); toast('Alterações offline sincronizadas ✓', 'ok'); }
+}
+function setOnline(v) {
+  const dot = $('#online-dot'); if (!dot) return;
+  dot.classList.toggle('off', v === false); dot.classList.toggle('sync', v === 'sync');
+  dot.title = v === false ? 'Offline — as alterações ficam na fila' : v === 'sync' ? 'Sincronizando…' : 'Online';
+  ui.online = v !== false;
+}
+window.addEventListener('online', () => { setOnline(true); flushQueue(); });
+window.addEventListener('offline', () => setOnline(false));
+
+function normalizeVal(key, val) {
+  const def = DEFAULTS[key];
+  if (Array.isArray(def)) return Array.isArray(val) ? val : [];
+  return val && typeof val === 'object' && !Array.isArray(val) ? val : {};
+}
+function loadFromCache() {
+  STATE_KEYS.forEach(k => { const raw = cache.get(k); if (raw == null) return; try { state[k] = normalizeVal(k, JSON.parse(raw)); } catch (e) {} });
+}
+// grava uma chave: cache + Firestore; o render é agendado antes, pra UI responder na hora
+async function save(key, msg) {
+  scheduleRender();
+  const ok = await window.storage.set(key, state[key]);
+  if (msg) toast(ok ? msg : msg + ' (offline, na fila)', ok ? 'ok' : '');
+  return ok;
+}
+
+/* =====================================================================
+ * 6. TEMPO REAL — onSnapshot na collection inteira. Um doc alterado em
+ * outro dispositivo atualiza o state, refaz o cache e agenda UM render
+ * (requestAnimationFrame junta várias mudanças seguidas num só).
+ * ===================================================================== */
+let unsubscribe = null;
+function subscribe() {
+  if (!db || unsubscribe) return;
+  ui.firstSnapshot = true;
+  unsubscribe = db.collection(COLLECTION).onSnapshot(snap => {
+    snap.docChanges().forEach(ch => {
+      const key = ch.doc.id;
+      if (!STATE_KEYS.includes(key)) return;
+      if (ch.type === 'removed') { state[key] = clone(DEFAULTS[key]); return; }
+      const raw = ch.doc.data().value;
+      let val; try { val = normalizeVal(key, JSON.parse(raw)); } catch (e) { return; }
+      // hasPendingWrites = eco da nossa própria gravação; não é novidade pra ninguém
+      if (!ui.firstSnapshot && !ch.doc.metadata.hasPendingWrites) detectNotifications(key, state[key], val);
+      state[key] = val;
+      cache.set(key, raw);
+    });
+    if (ui.firstSnapshot) { ui.firstSnapshot = false; ui.ready = true; flushQueue(); }
+    setOnline(!snap.metadata.fromCache);
+    scheduleRender();
+  }, err => {
+    console.warn('onSnapshot falhou; usando cache', err);
+    loadFromCache(); ui.ready = true; setOnline(false); scheduleRender();
+    if (err && err.code === 'permission-denied') toast('Sem permissão para ler os dados. Confira as regras do Firestore.', 'err');
+  });
+}
+function unsubscribeAll() { if (unsubscribe) { unsubscribe(); unsubscribe = null; } }
+
+/* =====================================================================
+ * 7. LOGIN POR PIN
+ * pinMap/map = { sha256(pin): email }. A pessoa digita o PIN, o app calcula
+ * o hash, descobre o email e entra com senha = PIN + sufixo.
+ * ===================================================================== */
+const keyFromEmail = email => String(email || '').split('@')[0].toLowerCase();
+
+async function loginWithPin(pin) {
+  if (!/^\d{4}$/.test(pin)) throw new Error('O PIN tem 4 dígitos.');
+  if (!db) throw new Error('Firebase não carregou. Verifique a conexão.');
+  const hash = await sha256(pin);
+  const snap = await withTimeout(db.collection('pinMap').doc('map').get(), 10000);
+  if (!snap.exists) throw new Error('As contas ainda não foram configuradas.');
+  const email = snap.data()[hash];
+  if (!email) throw new Error('PIN não encontrado.');
+  await auth.signInWithEmailAndPassword(email, pin + PIN_SUFFIX);
+}
+function startSession(key) {
+  session.user = key; lsSet('lg_lastUser', key);
+  loadFromCache();          // pinta na hora com o cache...
+  subscribe();              // ...e o snapshot corrige em seguida
+  if (DEMO) seedDemo();
+  hideLogin();
+  render();
+  requestNotifPermission();
+  loadWeather();
+  maybeCelebrate();
+}
+async function logout() {
+  unsubscribeAll(); closeAllModals();
+  session.user = null;
+  if (auth) { try { await auth.signOut(); } catch (e) {} }
+  showLogin(); render();
+}
+if (auth) {
+  auth.onAuthStateChanged(user => {
+    if (user) { const k = keyFromEmail(user.email); if (session.user !== k) startSession(k); }
+    else { session.user = null; unsubscribeAll(); showLogin(); render(); }
+  });
+}
+
+/* Criação de contas usa um app Firebase SECUNDÁRIO: createUser loga
+ * automaticamente no app em que foi chamado, e não queremos trocar o
+ * usuário do app principal no meio do caminho. */
+function secondaryAuth() {
+  if (!secondaryApp) secondaryApp = firebase.initializeApp(FIREBASE_CONFIG, 'secondary');
+  return secondaryApp.auth();
+}
+async function createAccount(email, pin) {
+  const sa = secondaryAuth();
+  try { await sa.createUserWithEmailAndPassword(email, pin + PIN_SUFFIX); }
+  catch (e) { if (e.code !== 'auth/email-already-in-use') throw e; }
+  finally { try { await sa.signOut(); } catch (e) {} }
+}
+// Primeira vez: cria as 3 contas, entra como gestor e grava o pinMap.
+async function setupAccounts(pins) {
+  for (const [key, pin] of Object.entries(pins)) await createAccount(SEED_EQUIPE[key].email, pin);
+  const adminKey = Object.keys(SEED_EQUIPE).find(k => SEED_EQUIPE[k].role === 'admin');
+  await auth.signInWithEmailAndPassword(SEED_EQUIPE[adminKey].email, pins[adminKey] + PIN_SUFFIX);
+  const map = {};
+  for (const [key, pin] of Object.entries(pins)) map[await sha256(pin)] = SEED_EQUIPE[key].email;
+  // merge:true — sem isso apagaria o acesso de quem for criado depois pela tela de equipe
+  await db.collection('pinMap').doc('map').set(map, { merge: true });
+  await db.collection('authSetupDone').doc('done').set({ at: Date.now(), by: adminKey, version: APP_VERSION });
+}
+// Pessoa nova pela tela de equipe: conta + entrada no pinMap.
+async function registerPin(email, pin) {
+  await createAccount(email, pin);
+  await db.collection('pinMap').doc('map').set({ [await sha256(pin)]: email }, { merge: true });
+}
+async function changeMyPin(oldPin, newPin) {
+  const user = auth.currentUser; if (!user) throw new Error('Sem sessão.');
+  const cred = firebase.auth.EmailAuthProvider.credential(user.email, oldPin + PIN_SUFFIX);
+  await user.reauthenticateWithCredential(cred);
+  await user.updatePassword(newPin + PIN_SUFFIX);
+  await db.collection('pinMap').doc('map').set({
+    [await sha256(oldPin)]: firebase.firestore.FieldValue.delete(),
+    [await sha256(newPin)]: user.email
+  }, { merge: true });
+}
+
+/* =====================================================================
+ * 8. AVISOS — comparamos o que chegou com o que estava no state e avisamos
+ * só o que interessa a quem está logado. Quem disparou nunca é avisado: o
+ * eco local nem chega aqui, e ainda checamos o autor porque a mesma pessoa
+ * pode estar logada em dois aparelhos.
+ * ===================================================================== */
+function requestNotifPermission() {
+  if (!('Notification' in window) || Notification.permission !== 'default') return;
+  setTimeout(() => { try { Notification.requestPermission(); } catch (e) {} }, 1500);
+}
+function notify(title, body) {
+  toast(`${title}: ${body}`.slice(0, 120));
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try { new Notification(title, { body: String(body || '').slice(0, 200), icon: 'icon-192.svg' }); } catch (e) {}
+  }
+}
+function detectNotifications(key, prev, next) {
+  const my = session.user; if (!my) return;
+  const idsOf = arr => new Set((arr || []).map(x => x.id));
+  if (key === 'messages') {
+    const seen = idsOf(prev);
+    next.forEach(m => { if (!seen.has(m.id) && m.to === my && m.from !== my) notify(`💬 Mensagem de ${nameOf(m.from)}`, m.text); });
+  } else if (key === 'kudos') {
+    const seen = idsOf(prev);
+    next.forEach(k => { if (!seen.has(k.id) && k.to === my && k.from !== my) notify(`🌟 Elogio de ${nameOf(k.from)}`, k.text); });
+  } else if (key === 'requests') {
+    const before = new Map((prev || []).map(r => [r.id, r]));
+    next.forEach(r => {
+      const old = before.get(r.id);
+      if (!old && r.status === 'pendente' && r.from !== my && isRecipient(r, my)) notify(`📨 ${reqLabel(r)} de ${nameOf(r.from)}`, r.msg || r.subject || '');
+      if (old && old.status === 'pendente' && r.status !== 'pendente' && r.from === my && r.respondedBy !== my)
+        notify(`📨 Solicitação ${r.status}`, `${nameOf(r.respondedBy)} ${r.status === 'aceita' ? 'aceitou' : 'recusou'}: ${reqLabel(r)}`);
+    });
+  } else if (key === 'events') {
+    const before = new Map((prev || []).map(e => [e.id, e]));
+    next.forEach(ev => {
+      const old = before.get(ev.id), mine = involves(ev, my), author = ev.updatedBy || ev.createdBy;
+      if (!old) {
+        if (mine && author !== my) {
+          if (ev.kind === 'reuniao') notify('📞 Convite de reunião', `${ev.title} — ${fmtWD(ev.date)} ${ev.start || ''}`);
+          else if (ev.kind === 'tarefa') notify('✅ Nova tarefa atribuída', ev.title);
+          else notify('📅 Novo compromisso pra você', `${ev.title} — ${fmtWD(ev.date)}`);
+        }
+        return;
+      }
+      const oldTasks = new Set((old.tasks || []).map(t => t.id));
+      const newMine = (ev.tasks || []).filter(t => !oldTasks.has(t.id) && t.who === my);
+      if (newMine.length && author !== my) notify('✅ Nova tarefa atribuída', `${ev.title}: ${newMine.map(t => t.text || t.role).join(', ')}`);
+      const oldC = new Set((old.comments || []).map(c => c.id));
+      (ev.comments || []).forEach(c => { if (!oldC.has(c.id) && c.by !== my && mentions(c.text, my)) notify(`💬 ${nameOf(c.by)} mencionou você`, c.text); });
+      if (ev.kind === 'reuniao' && mine && !involves(old, my) && author !== my) notify('📞 Convite de reunião', `${ev.title} — ${fmtWD(ev.date)} ${ev.start || ''}`);
+    });
+  }
+}
+
+function toast(msg, kind = '') {
+  const wrap = $('#toast-wrap'); if (!wrap) return;
+  const el = document.createElement('div');
+  el.className = 'toast ' + kind; el.textContent = msg; wrap.appendChild(el);
+  setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 320); }, 3200);
+}
+
+/* =====================================================================
+ * 9. MODAIS — pilha simples. Cada modal tem paint(body) pra se redesenhar
+ * quando chega dado novo. Modais com formulário desenham só as partes
+ * "vivas", pra não apagar o que a pessoa está digitando.
+ * ===================================================================== */
+function openModal(opts) {
+  const id = opts.id || uid();
+  closeModal(id);
+  const bd = document.createElement('div');
+  bd.className = 'modal-backdrop'; bd.dataset.modal = id;
+  bd.innerHTML = `<div class="modal ${opts.wide ? 'wide' : ''} ${opts.narrow ? 'narrow' : ''}" role="dialog" aria-modal="true">
+    <div class="modal-head"><div class="flex1"><h2>${opts.title || ''}</h2><div class="sub" ${opts.sub ? '' : 'hidden'}>${opts.sub || ''}</div></div>
+    <button class="iconbtn modal-close" data-act="close-modal" aria-label="Fechar">✕</button></div>
+    <div class="modal-body"></div></div>`;
+  $('#modal-root').appendChild(bd);
+  const m = { id, el: bd, body: $('.modal-body', bd), paint: opts.paint || null, live: opts.live !== false,
+              onClose: opts.onClose || null, closeOnBackdrop: opts.closeOnBackdrop !== false, data: opts.data || {} };
+  ui.modals.push(m);
+  document.body.classList.add('modal-open');
+  // fecha só no X quando há formulário (closeOnBackdrop:false), pra não perder o que foi digitado
+  bd.addEventListener('mousedown', e => { if (e.target === bd && m.closeOnBackdrop) closeModal(id); });
+  if (m.paint) m.paint(m.body, m);
+  return m;
+}
+function closeModal(id) {
+  const i = ui.modals.findIndex(m => m.id === id); if (i < 0) return;
+  const [m] = ui.modals.splice(i, 1); m.el.remove(); if (m.onClose) m.onClose();
+  if (!ui.modals.length) document.body.classList.remove('modal-open');
+}
+function closeAllModals() { [...ui.modals].forEach(m => closeModal(m.id)); }
+function getModal(id) { return ui.modals.find(m => m.id === id); }
+function repaintModals() { ui.modals.forEach(m => { if (m.live && m.paint) m.paint(m.body, m); }); }
+function setModalTitle(id, title, sub) {
+  const m = getModal(id); if (!m) return;
+  $('h2', m.el).innerHTML = title;
+  const s = $('.sub', m.el); if (s) { s.innerHTML = sub || ''; s.hidden = !sub; }
+}
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || !ui.modals.length) return;
+  const m = ui.modals[ui.modals.length - 1]; if (m.closeOnBackdrop) closeModal(m.id);
+});
+
+/* Eventos delegados: data-act (clique), data-change, data-input, data-submit. */
+const ACT = {}, CHG = {}, INP = {}, SUB = {};
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const fn = ACT[el.dataset.act]; if (!fn) return;
+  if (el.tagName === 'BUTTON' || el.tagName === 'A') e.preventDefault(); // botão dentro de form não pode submeter
+  fn(el, e);
+});
+document.addEventListener('change', e => { const el = e.target.closest('[data-change]'); if (el && CHG[el.dataset.change]) CHG[el.dataset.change](el, e); });
+document.addEventListener('input',  e => { const el = e.target.closest('[data-input]');  if (el && INP[el.dataset.input])  INP[el.dataset.input](el, e); });
+document.addEventListener('submit', e => { const el = e.target.closest('[data-submit]'); if (!el) return; e.preventDefault(); if (SUB[el.dataset.submit]) SUB[el.dataset.submit](el, e); });
+
+/* =====================================================================
+ * 10. HELPERS DE DOMÍNIO — equipe, eventos, folgas, solicitações
+ * ===================================================================== */
+function getEquipe() { return state.equipe && Object.keys(state.equipe).length ? state.equipe : SEED_EQUIPE; }
+// antes de mexer na equipe, copia a semente pro state (a partir daí, vale o state)
+function ensureEquipe() { if (!state.equipe || !Object.keys(state.equipe).length) state.equipe = clone(SEED_EQUIPE); return state.equipe; }
+function person(key) { return getEquipe()[key] || { nome: key === 'todos' ? 'Todos' : String(key), cor: '#BBBBBB', ativo: false, role: 'viewer' }; }
+function nameOf(key) { return key === 'todos' ? 'Todos' : person(key).nome; }
+function people(activeOnly = true) { const eq = getEquipe(); return Object.keys(eq).filter(k => !activeOnly || eq[k].ativo !== false); }
+function isAdmin() { return !!session.user && person(session.user).role === 'admin'; }
+function photoOf(key) { return (state.equipeFotos && state.equipeFotos[key]) || person(key).foto || avatarSvg(key); }
+function avatarSvg(key) {
+  const p = person(key);
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='31' fill='${p.cor}'/><text x='32' y='43' font-size='30' font-family='Georgia,serif' font-weight='700' text-anchor='middle' fill='${inkFor(p.cor)}'>${esc((p.nome || '?')[0].toUpperCase())}</text></svg>`;
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+function avatarImg(key, cls = 'avatar') { return `<img class="${cls}" src="${esc(photoOf(key))}" alt="" title="${esc(nameOf(key))}">`; }
+function colorVars(key) {
+  if (key === 'todos') return '--bg:var(--todos);--fg:var(--todos-ink)';
+  return `--bg:var(--c-${key},#BBBBBB);--fg:var(--c-${key}-ink,#1A1438)`;
+}
+function personChip(key) {
+  return `<span class="person-chip ${key === 'todos' ? 'todos' : ''}" style="${colorVars(key)}">${key === 'todos' ? '★' : avatarImg(key, 'avatar xs')} ${esc(nameOf(key))}</span>`;
+}
+function peopleOptions(selected, extra = '') {
+  return extra + people().map(k => `<option value="${k}" ${k === selected ? 'selected' : ''}>${esc(nameOf(k))}</option>`).join('');
+}
+
+// Quem está envolvido num evento: tarefas + participantes; senão o collab.
+function eventPeople(ev) {
+  const set = new Set();
+  (ev.tasks || []).forEach(t => t.who && set.add(t.who));
+  (ev.participants || []).forEach(p => p && set.add(p));
+  if (!set.size) { if (ev.collab === 'todos') people().forEach(k => set.add(k)); else if (ev.collab) set.add(ev.collab); }
+  return [...set];
+}
+const involves = (ev, key) => !!key && eventPeople(ev).includes(key);
+function canSee(ev) { if (!ev.private) return true; return isAdmin() || ev.createdBy === session.user || involves(ev, session.user); }
+function matchesSearch(ev) { const q = norm(ui.search.trim()); if (!q) return true; return [ev.title, ev.desc, ev.local].some(f => norm(f).includes(q)); }
+function visibleEvents() { return (state.events || []).filter(ev => ev && ev.date && canSee(ev) && (!ui.onlyMine || involves(ev, session.user)) && matchesSearch(ev)); }
+function eventsOn(dateStr, list) { return (list || visibleEvents()).filter(ev => ev.date === dateStr).sort(sortEvents); }
+function sortEvents(a, b) {
+  if (!!b.pinned !== !!a.pinned) return b.pinned ? 1 : -1;
+  const aa = a.allDay || !a.start, bb = b.allDay || !b.start;
+  if (aa !== bb) return aa ? -1 : 1;
+  return (a.start || '').localeCompare(b.start || '') || String(a.title).localeCompare(String(b.title));
+}
+function eventOwner(ev) { const ps = eventPeople(ev); return ps.length === 1 ? ps[0] : 'todos'; }
+function eventStyle(ev) {
+  const c = state.customColors && state.customColors[ev.id];
+  return c ? `--bg:${c};--fg:${inkFor(c)}` : colorVars(eventOwner(ev));
+}
+function eventDone(ev) { return (ev.tasks || []).length > 0 && ev.tasks.every(t => t.done); }
+function eventEnd(ev) {
+  const d = parseYmd(ev.date);
+  if (ev.allDay || !ev.end) d.setHours(23, 59, 0, 0); else { const [h, m] = ev.end.split(':').map(Number); d.setHours(h, m || 0, 0, 0); }
+  return d.getTime();
+}
+function findEvent(id) { return (state.events || []).find(e => e.id === id); }
+const isLoad = ev => ev.type !== 'folga' && ev.type !== 'aniversario';   // folga não conta como carga
+function weekLoad(who, dateStr, excludeId) {
+  const s = ymd(startOfWeek(parseYmd(dateStr))), e = addDaysYmd(s, 6);
+  return state.events.filter(ev => ev.id !== excludeId && ev.date >= s && ev.date <= e && isLoad(ev) && involves(ev, who)).length;
+}
+function monthLoad(who, y, m) {
+  const p = `${y}-${pad2(m + 1)}-`;
+  return state.events.filter(ev => ev.date && ev.date.startsWith(p) && isLoad(ev) && canSee(ev) && involves(ev, who)).length;
+}
+function replacePerson(ev, from, to) {
+  (ev.tasks || []).forEach(t => { if (t.who === from) t.who = to; });
+  if (ev.participants) ev.participants = [...new Set(ev.participants.map(p => p === from ? to : p))];
+  if (ev.collab === from) ev.collab = to;
+  ev.updatedAt = Date.now(); ev.updatedBy = session.user;
+}
+// folgas/férias: state.folgas = [{ id, who, tipo:'ferias'|'folga', start, end, periodo }]
+function offOn(dateStr) { return (state.folgas || []).filter(f => f.start <= dateStr && dateStr <= f.end); }
+function offFor(who, dateStr) { return offOn(dateStr).find(f => f.who === who); }
+function offLabel(f) { return f.tipo === 'ferias' ? '🏝️ férias' : f.periodo === 'integral' ? '🏖️ folga' : `🌗 folga (${f.periodo})`; }
+function birthdaysOn(dateStr) { const md = dateStr.slice(5); return Object.entries(state.birthdays || {}).filter(([k, v]) => v === md && getEquipe()[k]).map(([k]) => k); }
+function isRecipient(r, key) { return r.to === key || (r.to === 'todos' && person(key).role === 'admin'); }
+function reqLabel(r) { return { troca: 'Troca de dia', substituicao: 'Substituição', reuniao: 'Reunião' }[r.kind] || 'Solicitação'; }
+function logHistory(action, detail) {
+  state.history = state.history || [];
+  state.history.unshift({ id: uid(), at: Date.now(), by: session.user, action, detail: String(detail || '').slice(0, 200) });
+  if (state.history.length > 300) state.history.length = 300;
+  save('history');
+}
+function dayStatusOf(key, dateStr) { const s = state.statuses[dateStr] && state.statuses[dateStr][key]; return s && DAY_STATUS[s] ? DAY_STATUS[s] : null; }
+
+let rafId = 0;
+function scheduleRender() { if (rafId) return; rafId = requestAnimationFrame(() => { rafId = 0; render(); }); }
+
+/* =====================================================================
+ * 11. RENDER — header, banner, sidebar, vistas
+ * A sidebar tem esqueleto fixo no HTML; só as partes dinâmicas são
+ * redesenhadas, pra não apagar o que está digitado na busca.
+ * ===================================================================== */
+function render() {
+  applyTeamColors();
+  renderHeader(); renderBanner(); renderSidebar(); renderView(); renderBadges();
+  repaintModals();
+}
+// --c-<chave> e --c-<chave>-ink pra cada pessoa: quem entra depois também nasce com cor
+function applyTeamColors() {
+  const css = ':root{' + Object.entries(getEquipe()).map(([k, p]) => `--c-${k}:${p.cor};--c-${k}-ink:${inkFor(p.cor)};`).join('') + '}';
+  const tag = $('#team-colors'); if (tag.textContent !== css) tag.textContent = css;
+}
+function renderHeader() {
+  const d = ui.cursor; let title;
+  if (ui.view === 'month') title = `${MONTHS[d.getMonth()]} <span>${d.getFullYear()}</span>`;
+  else if (ui.view === 'week') {
+    const s = startOfWeek(d), e = addDays(s, 6);
+    title = s.getMonth() === e.getMonth()
+      ? `${s.getDate()}–${e.getDate()} ${MONTHS[e.getMonth()]} <span>${e.getFullYear()}</span>`
+      : `${s.getDate()} ${MONTHS[s.getMonth()].slice(0, 3)} – ${e.getDate()} ${MONTHS[e.getMonth()].slice(0, 3)} <span>${e.getFullYear()}</span>`;
+  } else title = `${d.getDate()} de ${MONTHS[d.getMonth()]} <span>${d.getFullYear()}</span>`;
+  $('#month-title').innerHTML = title;
+  $$('#view-seg button').forEach(b => b.classList.toggle('on', b.dataset.view === ui.view));
+  $('#btn-theme').textContent = ui.theme === 'dark' ? '☀️' : '🌙';
+}
+function renderBanner() {
+  const now = Date.now(); const el = $('#next-val');
+  const mine = state.events.filter(ev => ev.date && canSee(ev) && involves(ev, session.user) && isLoad(ev) && eventEnd(ev) >= now)
+    .sort((a, b) => eventStart(a) - eventStart(b));
+  const nx = mine[0];
+  if (!session.user) el.textContent = 'faça login para ver';
+  else if (!nx) el.textContent = 'nada marcado por enquanto 🎉';
+  else el.innerHTML = `${typeOf(nx).ico} ${esc(nx.title)} · ${nx.date === todayYmd() ? 'hoje' : fmtWD(nx.date)} ${nx.allDay || !nx.start ? '' : nx.start} <span class="muted">(${relTime(eventStart(nx))})</span>`;
+  $('#banner-next').dataset.id = nx ? nx.id : '';
+  $('#quote').textContent = QUOTES[dayOfYear(new Date()) % QUOTES.length];
+}
+function renderSidebar() {
+  const my = session.user, t = todayYmd();
+  $('#sb-user').innerHTML = my
+    ? `<div class="userbox">${avatarImg(my)}<div class="flex1"><div class="nm">${esc(nameOf(my))}</div><span class="role-tag">${isAdmin() ? 'gestor' : 'equipe'}</span></div><button class="btn btn-sm" data-act="logout">Sair</button></div>`
+    : `<button class="btn btn-primary btn-block" data-act="show-login">Entrar</button>`;
+  const st = my && state.statuses[t] && state.statuses[t][my];
+  $('#sb-status').innerHTML = my ? `<div class="sb-title">Status do dia</div><div class="status-picker">${Object.entries(DAY_STATUS).map(([k, s]) => `<button class="btn ${st === k ? 'on' : ''}" data-act="set-status" data-status="${k}">${s.ico} ${s.label}</button>`).join('')}</div>` : '';
+  $('#sb-team-btn').innerHTML = isAdmin() ? `<button class="btn btn-xs" data-act="team-manage">gerenciar</button>` : '';
+  $('#sb-team').innerHTML = people().map(k => {
+    const s = dayStatusOf(k, t), off = offFor(k, t);
+    const lbl = off ? offLabel(off) : s ? `${s.ico} ${s.label}` : '';
+    return `<div class="team-item" data-act="open-person" data-key="${k}">${avatarImg(k, 'avatar sm')}<span class="color-dot" style="background:var(--c-${k})"></span><span class="nm">${esc(nameOf(k))}</span><span class="st">${lbl}</span></div>`;
+  }).join('');
+  const now = Date.now();
+  const upc = visibleEvents().filter(ev => isLoad(ev) && eventEnd(ev) >= now).sort((a, b) => eventStart(a) - eventStart(b)).slice(0, 5);
+  $('#sb-upcoming').innerHTML = upc.length
+    ? upc.map(ev => `<div class="upc-item" style="${eventStyle(ev)}" data-act="open-event" data-id="${ev.id}"><span>${typeOf(ev).ico}</span><div class="flex1"><div class="t">${esc(ev.title)}</div><div class="when">${ev.date === t ? 'hoje' : fmtWD(ev.date)} ${ev.allDay || !ev.start ? '' : ev.start} · ${eventPeople(ev).map(nameOf).join(', ')}</div></div></div>`).join('')
+    : '<div class="empty">Nada por vir.</div>';
+  const y = ui.cursor.getFullYear(), m = ui.cursor.getMonth();
+  const counts = people().map(k => [k, monthLoad(k, y, m)]); const max = Math.max(1, ...counts.map(c => c[1]));
+  $('#sb-summary').innerHTML = counts.map(([k, n]) => `<div class="summary-row"><span class="nm">${esc(nameOf(k))}</span><div class="bar" title="${esc(nameOf(k))}: ${n}"><i style="width:${Math.round(n / max * 100)}%;--bg:var(--c-${k})"></i></div><span class="n">${n}</span></div>`).join('')
+    + `<div class="hint">${capitalize(MONTHS[m])} · folgas e férias não contam.</div>`;
+  const ks = (state.kudos || []).slice().sort((a, b) => b.at - a.at).slice(0, 5);
+  $('#sb-kudos').innerHTML = ks.length
+    ? ks.map(k => `<div class="kudo">🌟 <b>${esc(nameOf(k.to))}</b> — ${esc(k.text)}<div class="meta">de ${esc(nameOf(k.from))} · ${fmtWhen(k.at)}</div></div>`).join('')
+    : '<div class="empty">Ninguém elogiou ainda. Que tal começar?</div>';
+  $('#only-mine').checked = ui.onlyMine;
+}
+function renderBadges() {
+  const my = session.user;
+  const msgs = my ? (state.messages || []).filter(m => m.to === my && !m.read).length : 0;
+  const kud = my ? (state.kudos || []).filter(k => k.to === my && !(k.seenBy || []).includes(my)).length : 0;
+  const req = my ? (state.requests || []).filter(r => r.status === 'pendente' && isRecipient(r, my) && r.from !== my).length : 0;
+  const set = (id, n) => { const b = $(id); if (b) b.textContent = n ? String(n) : ''; };
+  set('#badge-msg', msgs); set('#badge-kudos', kud); set('#badge-req', req); set('#badge-req2', req);
+}
+
+/* ---------- vistas ---------- */
+function renderView() {
+  const c = $('#content');
+  if (ui.view === 'month') c.innerHTML = renderMonth();
+  else if (ui.view === 'week') c.innerHTML = renderTimeline(7);
+  else c.innerHTML = renderTimeline(1) + renderDayExtras();
+  const now = $('.tl-now', c), body = $('.tl-body', c);
+  if (now && body) body.scrollTop = Math.max(0, now.offsetTop - 140);
+  else if (body) body.scrollTop = 2 * 48; // começa às 8h
+}
+function renderMonth() {
+  const y = ui.cursor.getFullYear(), m = ui.cursor.getMonth();
+  const first = startOfWeek(new Date(y, m, 1)), last = new Date(y, m + 1, 0), t = todayYmd(), evs = visibleEvents();
+  const totalDays = Math.ceil((Math.round((last - first) / 864e5) + 1) / 7) * 7;
+  let html = '<div class="month-grid">';
+  for (let i = 0; i < 7; i++) html += `<div class="dow">${WEEKDAYS[(ui.weekStart + i) % 7]}</div>`;
+  const maxCards = 4;
+  for (let i = 0; i < totalDays; i++) {
+    const d = addDays(first, i), s = ymd(d), other = d.getMonth() !== m, hol = isHoliday(s);
+    const day = eventsOn(s, evs), bds = birthdaysOn(s), offs = offOn(s), shown = day.slice(0, maxCards);
+    html += `<div class="cell ${other ? 'other' : ''} ${s === t ? 'today' : ''} ${hol ? 'hol' : ''}" data-act="open-day" data-date="${s}">
+      <div class="daynum"><span class="n">${d.getDate()}</span>${hol ? `<span class="hol" title="${esc(hol)}">${esc(hol)}</span>` : ''}</div>
+      ${bds.length || offs.length ? `<div class="chips">${bds.map(k => `<span class="chip" title="Aniversário de ${esc(nameOf(k))}">🎂 ${esc(nameOf(k))}</span>`).join('')}${offs.map(f => `<span class="chip" style="${colorVars(f.who)}" title="${esc(nameOf(f.who))}: ${offLabel(f)}">${offLabel(f).split(' ')[0]} ${esc(nameOf(f.who))}</span>`).join('')}</div>` : ''}
+      ${shown.map(evCard).join('')}
+      ${day.length > maxCards ? `<div class="more">+${day.length - maxCards} mais</div>` : ''}
+    </div>`;
+  }
+  return html + '</div>';
+}
+function evCard(ev) {
+  return `<div class="ev ${eventDone(ev) ? 'done' : ''} ${ev.pinned ? 'pin' : ''}" style="${eventStyle(ev)}" data-act="open-event" data-id="${ev.id}" title="${esc(ev.title)} · ${eventPeople(ev).map(nameOf).join(', ')}">
+    <span class="ico">${ev.pinned ? '📌' : typeOf(ev).ico}</span>${ev.allDay || !ev.start ? '' : `<span class="hh">${ev.start}</span>`}<span class="t">${ev.private ? '🔒 ' : ''}${esc(ev.title)}</span></div>`;
+}
+function renderTimeline(cols) {
+  const start = cols === 7 ? startOfWeek(ui.cursor) : new Date(ui.cursor.getFullYear(), ui.cursor.getMonth(), ui.cursor.getDate());
+  const days = Array.from({ length: cols }, (_, i) => ymd(addDays(start, i)));
+  const t = todayYmd(), evs = visibleEvents(), H = HOUR_END - HOUR_START;
+  const head = `<div class="tl-head"><div></div>${days.map(s => { const d = parseYmd(s), hol = isHoliday(s); return `<div class="${s === t ? 'today' : ''}" data-act="open-day" data-date="${s}">${WEEKDAYS[d.getDay()]}<span class="dnum">${d.getDate()}</span>${hol ? `<span class="hol">${esc(hol)}</span>` : ''}</div>`; }).join('')}</div>`;
+  const allday = `<div class="tl-allday"><div>dia todo</div>${days.map(s => {
+    const items = eventsOn(s, evs).filter(ev => ev.allDay || !ev.start), offs = offOn(s), bds = birthdaysOn(s);
+    return `<div data-act="open-day" data-date="${s}">${bds.map(k => `<span class="chip">🎂 ${esc(nameOf(k))}</span>`).join('')}${offs.map(f => `<span class="chip" style="${colorVars(f.who)}">${offLabel(f).split(' ')[0]} ${esc(nameOf(f.who))}</span>`).join('')}${items.map(evCard).join('')}</div>`;
+  }).join('')}</div>`;
+  const hours = Array.from({ length: H + 1 }, (_, i) => `<div>${pad2(HOUR_START + i)}:00</div>`).join('');
+  const now = new Date(), nowTop = ((now.getHours() * 60 + now.getMinutes()) - HOUR_START * 60) / 60;
+  const body = `<div class="tl-body"><div class="tl-hours">${hours}</div>${days.map(s => {
+    const placed = layoutTimed(eventsOn(s, evs).filter(ev => !(ev.allDay || !ev.start)));
+    return `<div class="tl-col ${s === t ? 'today' : ''}" style="height:calc(var(--hour-h) * ${H + 1})" data-act="open-day" data-date="${s}">
+      ${s === t && nowTop >= 0 && nowTop <= H + 1 ? `<div class="tl-now" style="top:calc(var(--hour-h) * ${nowTop.toFixed(3)})"></div>` : ''}
+      ${placed.map(({ ev, col, ncol }) => {
+        const st = Math.max(0, (minutesOf(ev.start) - HOUR_START * 60) / 60);
+        const en = Math.min(H + 1, Math.max(st + 0.5, (minutesOf(ev.end || ev.start) - HOUR_START * 60) / 60));
+        const w = 100 / ncol;
+        return `<div class="tl-ev ${eventDone(ev) ? 'done' : ''}" style="${eventStyle(ev)};top:calc(var(--hour-h) * ${st.toFixed(3)});height:calc(var(--hour-h) * ${(en - st).toFixed(3)} - 3px);left:calc(${(col * w).toFixed(2)}% + 3px);width:calc(${w.toFixed(2)}% - 6px)" data-act="open-event" data-id="${ev.id}" title="${esc(ev.title)}"><span class="t">${ev.pinned ? '📌' : typeOf(ev).ico} ${ev.private ? '🔒' : ''}${esc(ev.title)}</span><span class="hh">${ev.start}${ev.end ? '–' + ev.end : ''} · ${eventPeople(ev).map(nameOf).join(', ')}</span></div>`;
+      }).join('')}
+    </div>`;
+  }).join('')}</div>`;
+  return `<div class="tl" style="--cols:${cols}">${head}${allday}${body}</div>`;
+}
+// eventos que se sobrepõem no horário ficam lado a lado, em colunas
+function layoutTimed(list) {
+  const items = list.map(ev => ({ ev, s: minutesOf(ev.start), e: Math.max(minutesOf(ev.start) + 30, minutesOf(ev.end || ev.start)) })).sort((a, b) => a.s - b.s || b.e - a.e);
+  const out = []; let cluster = [], clusterEnd = -1;
+  const flush = () => {
+    if (!cluster.length) return; const cols = [];
+    cluster.forEach(it => { let c = cols.findIndex(end => end <= it.s); if (c < 0) { c = cols.length; cols.push(0); } cols[c] = it.e; it.col = c; });
+    cluster.forEach(it => out.push({ ev: it.ev, col: it.col, ncol: cols.length }));
+    cluster = []; clusterEnd = -1;
+  };
+  items.forEach(it => { if (cluster.length && it.s >= clusterEnd) flush(); cluster.push(it); clusterEnd = Math.max(clusterEnd, it.e); });
+  flush(); return out;
+}
+function renderDayExtras() {
+  const s = ymd(ui.cursor), my = session.user;
+  const left = people().map(k => { const st = dayStatusOf(k, s), off = offFor(k, s); return `<div class="team-item" data-act="open-person" data-key="${k}">${avatarImg(k, 'avatar sm')}<span class="nm">${esc(nameOf(k))}</span><span class="st">${off ? offLabel(off) : st ? st.ico + ' ' + st.label : '—'}</span></div>`; }).join('');
+  const tasks = my ? eventsOn(s).flatMap(ev => (ev.tasks || []).filter(t => t.who === my).map(t => ({ ev, t }))) : [];
+  const right = tasks.length
+    ? `<div class="task-list">${tasks.map(({ ev, t }) => `<label class="task-item ${t.done ? 'done' : ''}"><input type="checkbox" ${t.done ? 'checked' : ''} data-change="toggle-task" data-id="${ev.id}" data-task="${t.id}"><span class="tx">${esc(t.text || t.role || ev.title)} <span class="muted small">· ${esc(ev.title)}</span></span></label>`).join('')}</div>`
+    : '<div class="empty">Sem tarefas suas neste dia.</div>';
+  const note = my && state.notes[my] && state.notes[my][s];
+  return `<div class="day-extra"><div class="section"><h3>👥 Equipe no dia</h3>${left}</div><div class="section"><h3>✅ Minhas tarefas do dia</h3>${right}${note ? `<h3 class="mt">${note.icon || '📝'} Minha nota</h3><div class="note-view">${esc(note.text)}</div>` : ''}</div></div>`;
+}
+
+/* ---------- busca ---------- */
+INP.search = debounce(el => { ui.search = el.value; renderSearchResults(); renderView(); renderSidebar(); }, 150);
+function renderSearchResults() {
+  const box = $('#search-results'), q = norm(ui.search.trim());
+  if (!q) { box.hidden = true; box.innerHTML = ''; return; }
+  const res = state.events.filter(ev => ev.date && canSee(ev) && matchesSearch(ev)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
+  box.hidden = false;
+  box.innerHTML = res.length
+    ? res.map(ev => `<div data-act="open-event" data-id="${ev.id}">${typeOf(ev).ico} <b>${esc(ev.title)}</b> <span class="muted">· ${fmtDMY(ev.date)}${ev.local ? ' · ' + esc(ev.local) : ''}</span></div>`).join('')
+    : '<div class="muted">Nada encontrado.</div>';
+}
+
+/* ---------- relógio, drawer, navegação ---------- */
+function tickClock() { const d = new Date(); const c = $('#clock'); if (c) c.textContent = `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; }
+function toggleDrawer(open) {
+  const sb = $('#sidebar'); const o = open == null ? !sb.classList.contains('open') : open;
+  sb.classList.toggle('open', o); $('#drawer-backdrop').classList.toggle('show', o); document.body.classList.toggle('drawer-open', o);
+}
+function shiftCursor(n) {
+  const d = ui.cursor;
+  ui.cursor = ui.view === 'month' ? new Date(d.getFullYear(), d.getMonth() + n, 1) : addDays(d, n * (ui.view === 'week' ? 7 : 1));
+  render();
+}
+ACT.prev = () => shiftCursor(-1);
+ACT.next = () => shiftCursor(1);
+ACT.today = () => { ui.cursor = new Date(); render(); };
+ACT.view = el => { ui.view = el.dataset.view; render(); };
+ACT.drawer = () => toggleDrawer();
+ACT['drawer-close'] = () => toggleDrawer(false);
+ACT.theme = () => { ui.theme = ui.theme === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', ui.theme); lsSet('lg_theme', ui.theme); renderHeader(); };
+ACT.print = () => window.print();
+ACT.logout = () => logout();
+ACT['show-login'] = () => showLogin();
+ACT['close-modal'] = el => { const bd = el.closest('.modal-backdrop'); if (bd) closeModal(bd.dataset.modal); };
+CHG['only-mine'] = el => { ui.onlyMine = el.checked; render(); };
+ACT['set-status'] = el => {
+  if (!session.user) return; const t = todayYmd();
+  state.statuses[t] = state.statuses[t] || {};
+  if (state.statuses[t][session.user] === el.dataset.status) delete state.statuses[t][session.user]; else state.statuses[t][session.user] = el.dataset.status;
+  save('statuses', 'Status atualizado ✓');
+};
+ACT['open-person'] = el => openTeamStatus(el.dataset.key);
+ACT['banner-next'] = el => { if (el.dataset.id) openEventCard(el.dataset.id); };
+ACT['open-day'] = el => { toggleDrawer(false); openDayModal(el.dataset.date); };
+ACT['open-event'] = el => { toggleDrawer(false); openEventCard(el.dataset.id); };
+CHG['toggle-task'] = el => toggleTask(el.dataset.id, el.dataset.task, el.checked);
+
+/* =====================================================================
+ * 12. CLIMA — Open-Meteo, sem chave. Geocodifica a cidade uma vez (cache
+ * permanente) e guarda a previsão por 30 min por cidade.
+ * ===================================================================== */
+async function geocode(city) {
+  const ck = 'lg_geo_' + norm(city), hit = lsGet(ck, null); if (hit) return JSON.parse(hit);
+  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=pt&format=json`);
+  const j = await r.json(); const g = j.results && j.results[0]; if (!g) throw new Error('cidade não encontrada');
+  const out = { lat: g.latitude, lon: g.longitude, name: g.name, admin: g.admin1 || '' }; lsSet(ck, JSON.stringify(out)); return out;
+}
+async function fetchWeather(city) {
+  const ck = 'lg_wx_' + norm(city), hit = lsGet(ck, null);
+  if (hit) { try { const j = JSON.parse(hit); if (Date.now() - j.at < 30 * 60e3) return j; } catch (e) {} }
+  const g = await geocode(city);
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${g.lat}&longitude=${g.lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=5`;
+  const r = await fetch(url); const j = await r.json();
+  if (!j.current) throw new Error('resposta inesperada');
+  const out = { at: Date.now(), city: g.name, admin: g.admin,
+    current: { temp: Math.round(j.current.temperature_2m), code: j.current.weather_code, wind: Math.round(j.current.wind_speed_10m), hum: j.current.relative_humidity_2m },
+    daily: j.daily.time.map((d, i) => ({ date: d, code: j.daily.weather_code[i], max: Math.round(j.daily.temperature_2m_max[i]), min: Math.round(j.daily.temperature_2m_min[i]), pop: j.daily.precipitation_probability_max[i] })) };
+  lsSet(ck, JSON.stringify(out)); return out;
+}
+const wmo = code => WMO[code] || ['🌡️', 'Tempo'];
+async function loadWeather() {
+  const city = session.user && person(session.user).cidade;
+  if (!city) { $('#wx-val').textContent = 'sem cidade cadastrada'; return; }
+  $('#wx-val').textContent = 'carregando…';
+  try { const w = await fetchWeather(city); const [ico, lbl] = wmo(w.current.code); $('#wx-ico').textContent = ico; $('#wx-val').textContent = `${w.current.temp}°C · ${lbl} · ${w.city}`; }
+  catch (e) { $('#wx-val').textContent = 'clima indisponível'; }
+}
+
+/* =====================================================================
+ * 13. MODAL DO DIA — eventos do dia + (gestor) 4 abas / (equipe) nota
+ * Só fecha no X. A lista de eventos é "viva"; os formulários não são
+ * redesenhados quando chega dado novo, pra não perder o que foi digitado.
+ * ===================================================================== */
+function openDayModal(dateStr, opts = {}) {
+  return openModal({
+    id: 'day', title: fmtLong(parseYmd(dateStr)), sub: dayModalSub(dateStr), closeOnBackdrop: false, live: true,
+    data: { date: dateStr, tab: opts.tab || 'evento', editId: opts.editId || null, taskQueue: [], taskEditId: null },
+    paint: paintDayModal
+  });
+}
+function dayModalSub(s) {
+  const hol = isHoliday(s), b = birthdaysOn(s);
+  return [hol ? '🎌 ' + esc(hol) : '', b.length ? '🎂 ' + b.map(k => esc(nameOf(k))).join(', ') : '', isWeekend(s) ? 'fim de semana' : ''].filter(Boolean).join(' · ');
+}
+function paintDayModal(body, m) {
+  if (!body.dataset.built) {
+    body.dataset.built = '1';
+    body.innerHTML = '<div id="dm-live"></div><div id="dm-static"></div>';
+    paintDayStatic($('#dm-static', body), m);
+  }
+  paintDayLive($('#dm-live', body), m);
+  paintVacationList(body); // listas dentro da aba férias também são vivas (não têm texto digitado)
+}
+function paintDayLive(el, m) {
+  const s = m.data.date, evs = eventsOn(s), offs = offOn(s);
+  el.innerHTML = `<div class="section"><h3>📅 Compromissos do dia <span class="right muted">${evs.length}</span></h3>
+    ${offs.length ? `<div class="row mb">${offs.map(f => `<span class="person-chip" style="${colorVars(f.who)}">${offLabel(f)} · ${esc(nameOf(f.who))}</span>`).join('')}</div>` : ''}
+    ${evs.length ? `<div class="list-ev">${evs.map(ev => `<div class="item" style="${eventStyle(ev)}" data-act="open-event" data-id="${ev.id}"><span>${ev.pinned ? '📌' : typeOf(ev).ico}</span><span class="t">${ev.private ? '🔒 ' : ''}${esc(ev.title)}</span><span class="hh">${ev.allDay || !ev.start ? 'dia todo' : ev.start + (ev.end ? '–' + ev.end : '')}</span><span class="small">${eventPeople(ev).map(nameOf).join(', ')}</span>${isAdmin() ? `<button class="btn btn-xs" data-act="edit-event" data-id="${ev.id}" title="Editar">✏️</button>` : ''}</div>`).join('')}</div>` : '<div class="empty">Nenhum compromisso neste dia.</div>'}
+  </div>`;
+}
+function paintDayStatic(el, m) {
+  const s = m.data.date;
+  if (!session.user) { el.innerHTML = '<div class="empty">Entre para interagir com o dia.</div>'; return; }
+  if (!isAdmin()) { el.innerHTML = viewerDayPanel(s); return; }
+  const tab = m.data.tab;
+  el.innerHTML = `<div class="tabs">${[['evento', '📅 Evento'], ['tarefa', '✅ Tarefa'], ['reuniao', '👥 Reunião'], ['ferias', '🏝️ Férias']].map(([k, l]) => `<button class="tab ${tab === k ? 'on' : ''}" data-act="day-tab" data-tab="${k}">${l}</button>`).join('')}</div>
+    <div class="tabpane ${tab === 'evento' ? 'on' : ''}" data-pane="evento">${eventFormHtml(s)}</div>
+    <div class="tabpane ${tab === 'tarefa' ? 'on' : ''}" data-pane="tarefa">${taskFormHtml(s)}</div>
+    <div class="tabpane ${tab === 'reuniao' ? 'on' : ''}" data-pane="reuniao">${meetingFormHtml(s)}</div>
+    <div class="tabpane ${tab === 'ferias' ? 'on' : ''}" data-pane="ferias">${vacationFormHtml(s)}</div>`;
+  $('#task-rows', el).innerHTML = taskRowHtml();
+  paintTaskQueue(el);
+  paintVacPreview($('#vac-form', el));
+  if (m.data.editId) fillFormForEdit(el, m.data.editId, m);
+}
+ACT['day-tab'] = el => {
+  const m = getModal('day'); if (!m) return; m.data.tab = el.dataset.tab;
+  $$('.tab', m.body).forEach(t => t.classList.toggle('on', t.dataset.tab === m.data.tab));
+  $$('.tabpane', m.body).forEach(p => p.classList.toggle('on', p.dataset.pane === m.data.tab));
+};
+function switchDayTab(root, tab) {
+  $$('.tab', root).forEach(t => t.classList.toggle('on', t.dataset.tab === tab));
+  $$('.tabpane', root).forEach(p => p.classList.toggle('on', p.dataset.pane === tab));
+}
+
+/* ---------- aba EVENTO ---------- */
+function eventFormHtml(s) {
+  const typeOpts = Object.entries(EVENT_TYPES).filter(([k]) => k !== 'tarefa').map(([k, t]) => `<option value="${k}">${t.ico} ${t.label}</option>`).join('');
+  return `<form data-submit="save-event" id="ev-form" autocomplete="off" novalidate>
+    <input type="hidden" name="editId" value="">
+    <div class="templates">${Object.entries(TEMPLATES).map(([k, t]) => `<button type="button" class="btn btn-sm" data-act="template" data-tpl="${k}">${t.nome}</button>`).join('')}</div>
+    <div class="field"><label>Título</label><input class="input" name="title" required maxlength="120" placeholder="Ex.: Entrega cliente Zona Norte"></div>
+    <div class="grid3">
+      <div class="field"><label>Data</label><input class="input" type="date" name="date" value="${s}" required></div>
+      <div class="field"><label>Início</label><input class="input" type="time" name="start" value="08:00"></div>
+      <div class="field"><label>Fim</label><input class="input" type="time" name="end" value="09:00"></div>
+    </div>
+    <label class="check mb"><input type="checkbox" name="allDay"> Dia inteiro (sem horário)</label>
+    <div class="section"><h3>👥 Equipe &amp; Tarefas <span class="right"><button type="button" class="btn btn-xs" data-act="add-task-row">+ tarefa</button></span></h3>
+      <div id="task-rows"></div>
+      <div class="hint">Pelo menos uma tarefa. Todas da mesma pessoa → evento dela; pessoas diferentes → "Todos".</div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Tipo</label><select name="type">${typeOpts}</select></div>
+      <div class="field"><label>Local</label><input class="input" name="local" maxlength="120" placeholder="CD, cliente, rodovia…"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Recorrência</label><select name="recur" data-change="recur-change"><option value="none">Não repete</option><option value="daily">Diária</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option><option value="custom">Personalizada</option></select></div>
+      <div class="field" id="recur-count-wrap" hidden><label>Repetir quantas vezes</label><input class="input" type="number" name="count" min="1" max="60" value="4"></div>
+    </div>
+    <div class="grid2" id="recur-custom" hidden>
+      <div class="field"><label>A cada</label><input class="input" type="number" name="interval" min="1" max="90" value="2"></div>
+      <div class="field"><label>Unidade</label><select name="unit"><option value="days">dias</option><option value="weeks">semanas</option><option value="months">meses</option></select></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Link</label><input class="input" name="link" placeholder="https://…"></div>
+      <div class="field"><label>Prioridade do evento</label><select name="priority"><option value="baixa">🟢 Baixa</option><option value="media" selected>🟡 Média</option><option value="alta">🔴 Alta</option></select></div>
+    </div>
+    <div class="field"><label>Descrição</label><textarea name="desc" maxlength="2000" placeholder="Detalhes, observações, contato…"></textarea></div>
+    <div class="row mb">
+      <label class="check"><input type="checkbox" name="pinned"> 📌 Fixar no topo</label>
+      <label class="check"><input type="checkbox" name="private"> 🔒 Privado (só gestor e envolvidos)</label>
+      <label class="check"><input type="checkbox" name="useColor"> 🎨 Cor própria <input type="color" name="color" value="#F5B942"></label>
+    </div>
+    <div class="row"><button class="btn btn-primary" type="submit" id="ev-submit">Salvar evento</button><button type="button" class="btn" data-act="cancel-edit" id="ev-cancel" hidden>Cancelar edição</button></div>
+  </form>`;
+}
+function taskRowHtml(t = {}) {
+  const prio = t.priority || 'media';
+  return `<div class="task-row">
+    <select name="t_who">${peopleOptions(t.who || session.user)}</select>
+    <select name="t_prio">${Object.entries(PRIORITIES).map(([k, p]) => `<option value="${k}" ${prio === k ? 'selected' : ''}>${p.ico} ${p.label}</option>`).join('')}</select>
+    <input class="input" name="t_role" placeholder="Função / tarefa" value="${esc(t.text || t.role || '')}" maxlength="80">
+    <button type="button" class="btn btn-sm" data-act="remove-row" title="Remover">✕</button>
+    <div class="role-wrap"><div class="role-chips">${ROLE_SHORTCUTS.map(r => `<span class="chip ${(t.role || '') === r.label ? 'on' : ''}" data-act="role-chip" data-role="${esc(r.label)}">${r.ico} ${r.label}</span>`).join('')}<span class="chip" data-act="role-chip" data-role="">✏️ Outro</span></div></div>
+  </div>`;
+}
+ACT['add-task-row'] = el => { $('#task-rows', el.closest('form')).insertAdjacentHTML('beforeend', taskRowHtml()); };
+ACT['remove-row'] = el => { const form = el.closest('form'); el.closest('.task-row').remove(); if (!$('.task-row', form)) $('#task-rows', form).innerHTML = taskRowHtml(); };
+ACT['role-chip'] = el => {
+  const row = el.closest('.task-row'), inp = $('[name=t_role]', row);
+  inp.value = el.dataset.role; if (!el.dataset.role) inp.focus();
+  $$('.chip', row).forEach(c => c.classList.toggle('on', c === el && !!el.dataset.role));
+};
+CHG['recur-change'] = el => { const f = el.closest('form'); $('#recur-count-wrap', f).hidden = el.value === 'none'; $('#recur-custom', f).hidden = el.value !== 'custom'; };
+ACT.template = el => applyTemplate(el.dataset.tpl, el.closest('form'));
+ACT['cancel-edit'] = el => { const m = getModal('day'); if (m) m.data.editId = null; resetEventForm(el.closest('form')); };
+function applyTemplate(key, form) {
+  const t = TEMPLATES[key]; if (!t) return; const E = form.elements;
+  E.title.value = t.title; E.type.value = t.type; E.start.value = t.start; E.end.value = t.end; E.allDay.checked = false;
+  E.priority.value = t.priority; E.desc.value = t.desc; E.recur.value = t.recur; E.count.value = Math.max(2, t.count);
+  CHG['recur-change'](E.recur);
+  $('#task-rows', form).innerHTML = taskRowHtml({ who: session.user, role: t.role, priority: t.priority });
+  toast('Modelo aplicado — ajuste e salve');
+}
+function resetEventForm(form) {
+  form.reset(); const E = form.elements; const m = getModal('day');
+  E.editId.value = ''; if (m) E.date.value = m.data.date;
+  $('#task-rows', form).innerHTML = taskRowHtml();
+  $('#ev-submit', form).textContent = 'Salvar evento'; $('#ev-cancel', form).hidden = true;
+  CHG['recur-change'](E.recur);
+}
+function expandRecurrence(date, recur, interval, unit, count) {
+  const step = recur === 'daily' ? [1, 'days'] : recur === 'weekly' ? [1, 'weeks'] : recur === 'monthly' ? [1, 'months'] : [Math.max(1, interval), unit];
+  const out = [], d0 = parseYmd(date);
+  for (let i = 0; i < count; i++) {
+    let d;
+    if (step[1] === 'months') {
+      const tg = new Date(d0.getFullYear(), d0.getMonth() + i * step[0], 1);
+      d = new Date(tg.getFullYear(), tg.getMonth(), Math.min(d0.getDate(), daysInMonth(tg.getFullYear(), tg.getMonth()))); // dia 31 vira o último dia do mês
+    } else d = addDays(d0, i * step[0] * (step[1] === 'weeks' ? 7 : 1));
+    out.push(ymd(d));
+  }
+  return out;
+}
+SUB['save-event'] = async form => {
+  const E = form.elements, m = getModal('day');
+  const title = E.title.value.trim(); if (!title) return toast('Dê um título ao evento', 'err');
+  const date = E.date.value; if (!date) return toast('Escolha a data', 'err');
+  const allDay = E.allDay.checked, start = allDay ? '' : E.start.value, end = allDay ? '' : E.end.value;
+  if (!allDay && start && end && end < start) return toast('O fim não pode ser antes do início', 'err');
+  const tasks = $$('.task-row', form).map(r => ({ id: uid(), who: $('[name=t_who]', r).value, priority: $('[name=t_prio]', r).value, role: $('[name=t_role]', r).value.trim() || 'Responsável', done: false })).filter(t => t.who);
+  if (!tasks.length) return toast('O evento precisa de pelo menos uma tarefa atribuída', 'err');
+  const whos = [...new Set(tasks.map(t => t.who))], collab = whos.length === 1 ? whos[0] : 'todos';
+  const editId = E.editId.value || null;
+  for (const w of whos) { const n = weekLoad(w, date, editId); if (n >= 5 && !confirm(`${nameOf(w)} já tem ${n} compromissos nessa semana. Sobrecarregar mesmo assim?`)) return; }
+  const base = { title, date, start, end, allDay, type: E.type.value, local: E.local.value.trim(), link: safeUrl(E.link.value), desc: E.desc.value.trim(),
+                 priority: E.priority.value, pinned: E.pinned.checked, private: E.private.checked, collab, tasks, kind: 'evento' };
+  const useColor = E.useColor.checked, color = E.color.value;
+  if (editId) {
+    const ev = findEvent(editId); if (!ev) return toast('Evento não encontrado', 'err');
+    // mantém "feito" das tarefas que continuam com a mesma pessoa e função
+    base.tasks = base.tasks.map(t => { const old = (ev.tasks || []).find(o => o.who === t.who && (o.role === t.role || o.text === t.role)); return old ? { ...old, priority: t.priority } : t; });
+    Object.assign(ev, base, { updatedAt: Date.now(), updatedBy: session.user });
+    if (useColor) state.customColors[ev.id] = color; else delete state.customColors[ev.id];
+    save('customColors');
+    await save('events', 'Evento atualizado ✓'); logHistory('editou', `evento "${title}" em ${fmtDMY(date)}`);
+  } else {
+    const recur = E.recur.value, count = Math.min(60, Math.max(1, Number(E.count.value) || 1));
+    const dates = recur === 'none' ? [date] : expandRecurrence(date, recur, Number(E.interval.value) || 1, E.unit.value, count);
+    const seriesId = dates.length > 1 ? uid() : null;
+    dates.forEach(dt => {
+      const id = uid();
+      state.events.push({ ...clone(base), id, date: dt, seriesId, tasks: base.tasks.map(t => ({ ...t, id: uid() })), createdBy: session.user, createdAt: Date.now(), rsvp: {}, comments: [] });
+      if (useColor) state.customColors[id] = color;
+    });
+    if (useColor) save('customColors');
+    await save('events', dates.length > 1 ? `${dates.length} eventos criados ✓` : 'Evento criado ✓');
+    logHistory('criou', `evento "${title}" em ${fmtDMY(date)}${dates.length > 1 ? ` (série de ${dates.length})` : ''}`);
+  }
+  if (m) m.data.editId = null;
+  resetEventForm(form);
+};
+// Editar preenche o formulário da ABA CERTA (evento / tarefa / reunião), nunca um escondido.
+function fillFormForEdit(root, id, m) {
+  const ev = findEvent(id); if (!ev) return;
+  const tab = ev.kind === 'tarefa' ? 'tarefa' : ev.kind === 'reuniao' ? 'reuniao' : 'evento';
+  m.data.tab = tab; switchDayTab(root, tab);
+  if (tab === 'evento') {
+    const form = $('#ev-form', root), E = form.elements;
+    E.editId.value = ev.id; E.title.value = ev.title; E.date.value = ev.date; E.allDay.checked = !!ev.allDay;
+    E.start.value = ev.start || '08:00'; E.end.value = ev.end || '09:00';
+    E.type.value = EVENT_TYPES[ev.type] && ev.type !== 'tarefa' ? ev.type : 'outro';
+    E.local.value = ev.local || ''; E.link.value = ev.link || ''; E.desc.value = ev.desc || ''; E.priority.value = ev.priority || 'media';
+    E.pinned.checked = !!ev.pinned; E.private.checked = !!ev.private; E.recur.value = 'none'; CHG['recur-change'](E.recur);
+    const c = state.customColors[ev.id]; E.useColor.checked = !!c; if (c) E.color.value = c;
+    $('#task-rows', form).innerHTML = (ev.tasks && ev.tasks.length ? ev.tasks : [{ who: eventOwner(ev) === 'todos' ? session.user : eventOwner(ev) }]).map(taskRowHtml).join('');
+    $('#ev-submit', form).textContent = 'Atualizar evento'; $('#ev-cancel', form).hidden = false;
+    setTimeout(() => form.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  } else if (tab === 'tarefa') {
+    m.data.taskQueue = (ev.tasks || []).map(t => ({ id: t.id, who: t.who, text: t.text || t.role, priority: t.priority || 'media', done: !!t.done, doneAt: t.doneAt }));
+    m.data.taskEditId = ev.id;
+    paintTaskQueue(root);
+  } else {
+    const form = $('#mt-form', root), E = form.elements;
+    E.editId.value = ev.id; E.subject.value = ev.title; E.date.value = ev.date; E.start.value = ev.start || '10:00'; E.end.value = ev.end || '11:00';
+    E.local.value = ev.local || ''; E.link.value = ev.link || '';
+    const parts = ev.participants && ev.participants.length ? ev.participants : eventPeople(ev);
+    $$('[name=mt_who]', form).forEach(cb => { cb.checked = parts.includes(cb.value); cb.closest('label').classList.toggle('on', cb.checked); });
+    $('#mt-submit', form).textContent = 'Atualizar reunião';
+  }
+}
+
+/* ---------- aba TAREFA: fila que mistura pessoas; um cartão por pessoa ---------- */
+function taskFormHtml(s) {
+  return `<div class="section"><h3>✅ Fila de tarefas</h3>
+    <form data-submit="queue-task" id="tq-form" autocomplete="off">
+      <div class="task-row" style="grid-template-columns:1fr .8fr 2fr auto">
+        <select name="who">${peopleOptions(session.user)}</select>
+        <select name="priority">${Object.entries(PRIORITIES).map(([k, p]) => `<option value="${k}" ${k === 'media' ? 'selected' : ''}>${p.ico} ${p.label}</option>`).join('')}</select>
+        <input class="input" name="text" placeholder="O que precisa ser feito" maxlength="140" required>
+        <button class="btn btn-sm" type="submit">+ fila</button>
+      </div>
+    </form>
+    <div id="task-queue"></div>
+    <div class="hint mb">Cada pessoa recebe um único cartão em ${fmtDMY(s)} com a lista dela, sem horário, e vai marcando uma a uma. Se já existir um cartão do dia, as tarefas entram nele. Você pode delegar pra si mesmo.</div>
+    <div class="row"><button class="btn btn-primary" data-act="delegate-tasks" id="tq-submit">Delegar tudo</button><button class="btn" data-act="clear-queue">Limpar fila</button></div>
+  </div>`;
+}
+function paintTaskQueue(root) {
+  const m = getModal('day'); if (!m) return; const q = m.data.taskQueue || [], el = $('#task-queue', root); if (!el) return;
+  const byWho = {}; q.forEach((t, i) => (byWho[t.who] = byWho[t.who] || []).push([t, i]));
+  el.innerHTML = q.length
+    ? Object.entries(byWho).map(([w, list]) => `<div class="mb"><div class="mb">${personChip(w)}</div><div class="task-list">${list.map(([t, i]) => `<div class="task-item ${t.done ? 'done' : ''}"><span class="prio-${t.priority}">${PRIORITIES[t.priority].ico}</span><span class="tx">${esc(t.text)}</span><button class="btn btn-xs" data-act="queue-remove" data-i="${i}">✕</button></div>`).join('')}</div></div>`).join('')
+    : '<div class="empty">Fila vazia — adicione tarefas acima, misturando pessoas à vontade.</div>';
+  const sb = $('#tq-submit', root); if (sb) sb.textContent = m.data.taskEditId ? 'Atualizar cartão' : `Delegar tudo (${q.length})`;
+}
+SUB['queue-task'] = form => {
+  const E = form.elements, m = getModal('day'); const text = E.text.value.trim(); if (!text || !m) return;
+  m.data.taskQueue.push({ who: E.who.value, text, priority: E.priority.value });
+  E.text.value = ''; E.text.focus(); paintTaskQueue(m.body);
+};
+ACT['queue-remove'] = el => { const m = getModal('day'); m.data.taskQueue.splice(Number(el.dataset.i), 1); paintTaskQueue(m.body); };
+ACT['clear-queue'] = () => { const m = getModal('day'); m.data.taskQueue = []; m.data.taskEditId = null; paintTaskQueue(m.body); };
+ACT['delegate-tasks'] = async () => {
+  const m = getModal('day'); if (!m) return; const q = m.data.taskQueue, s = m.data.date;
+  if (!q.length) return toast('A fila está vazia', 'err');
+  if (m.data.taskEditId) {
+    const ev = findEvent(m.data.taskEditId); if (!ev) return;
+    ev.tasks = q.map(t => ({ id: t.id || uid(), who: t.who, text: t.text, role: 'Tarefa', priority: t.priority, done: !!t.done, doneAt: t.doneAt || null }));
+    const whos = [...new Set(ev.tasks.map(t => t.who))];
+    ev.collab = whos.length === 1 ? whos[0] : 'todos'; ev.title = whos.length === 1 ? `Tarefas de ${nameOf(whos[0])}` : 'Tarefas da equipe';
+    ev.updatedAt = Date.now(); ev.updatedBy = session.user;
+    m.data.taskQueue = []; m.data.taskEditId = null;
+    await save('events', 'Cartão atualizado ✓'); logHistory('editou', `tarefas de ${whos.map(nameOf).join(', ')} em ${fmtDMY(s)}`);
+    paintTaskQueue(m.body); return;
+  }
+  const byWho = {}; q.forEach(t => (byWho[t.who] = byWho[t.who] || []).push(t));
+  Object.entries(byWho).forEach(([who, list]) => {
+    let card = state.events.find(ev => ev.kind === 'tarefa' && ev.date === s && ev.collab === who);
+    if (!card) {
+      card = { id: uid(), kind: 'tarefa', type: 'tarefa', title: `Tarefas de ${nameOf(who)}`, date: s, allDay: true, start: '', end: '', collab: who, tasks: [], priority: 'media', createdBy: session.user, createdAt: Date.now(), rsvp: {}, comments: [] };
+      state.events.push(card);
+    }
+    list.forEach(t => card.tasks.push({ id: uid(), who, text: t.text, role: 'Tarefa', priority: t.priority, done: false }));
+    card.updatedAt = Date.now(); card.updatedBy = session.user;
+  });
+  m.data.taskQueue = [];
+  await save('events', 'Tarefas delegadas ✓'); logHistory('delegou', `${q.length} tarefa(s) para ${Object.keys(byWho).map(nameOf).join(', ')} em ${fmtDMY(s)}`);
+  paintTaskQueue(m.body);
+};
+
+/* ---------- aba REUNIÃO: entra no calendário na hora ---------- */
+function meetingFormHtml(s) {
+  return `<form class="section" data-submit="save-meeting" id="mt-form" autocomplete="off" novalidate><h3>👥 Marcar reunião</h3>
+    <input type="hidden" name="editId" value="">
+    <div class="field"><label>Com quem</label><div class="people-pick"><button type="button" class="btn btn-sm" data-act="mt-all">★ Todos</button>${people().map(k => `<label class="on"><input type="checkbox" name="mt_who" value="${k}" data-change="pick-toggle" checked hidden>${avatarImg(k, 'avatar xs')} ${esc(nameOf(k))}</label>`).join('')}</div></div>
+    <div class="grid3">
+      <div class="field"><label>Data</label><input class="input" type="date" name="date" value="${s}" required></div>
+      <div class="field"><label>Início</label><input class="input" type="time" name="start" value="10:00" required></div>
+      <div class="field"><label>Fim</label><input class="input" type="time" name="end" value="11:00"></div>
+    </div>
+    <div class="field"><label>Assunto</label><input class="input" name="subject" required maxlength="120" placeholder="Ex.: Alinhamento das rotas da semana"></div>
+    <div class="grid2"><div class="field"><label>Local</label><input class="input" name="local" maxlength="120" placeholder="Sala, CD, chamada de vídeo…"></div><div class="field"><label>Link</label><input class="input" name="link" placeholder="https://meet…"></div></div>
+    <div class="hint mb">A reunião entra no calendário na hora — não depende de aceite. A equipe é avisada e confirma presença.</div>
+    <button class="btn btn-primary" type="submit" id="mt-submit">Marcar reunião</button>
+  </form>`;
+}
+CHG['pick-toggle'] = el => el.closest('label').classList.toggle('on', el.checked);
+ACT['mt-all'] = el => { $$('[name=mt_who]', el.closest('form')).forEach(cb => { cb.checked = true; cb.closest('label').classList.add('on'); }); };
+SUB['save-meeting'] = async form => {
+  const E = form.elements, parts = $$('[name=mt_who]:checked', form).map(cb => cb.value);
+  if (!E.date.value || !E.start.value) return toast('Informe data e horário', 'err');
+  if (!parts.length) return toast('Escolha pelo menos uma pessoa', 'err');
+  const subject = E.subject.value.trim(); if (!subject) return toast('Qual é o assunto?', 'err');
+  if (E.end.value && E.end.value < E.start.value) return toast('O fim não pode ser antes do início', 'err');
+  const base = { kind: 'reuniao', type: 'reuniao', title: subject, date: E.date.value, start: E.start.value, end: E.end.value, allDay: false, participants: parts,
+                 collab: parts.length === 1 ? parts[0] : 'todos', local: E.local.value.trim(), link: safeUrl(E.link.value), priority: 'media' };
+  const editId = E.editId.value;
+  if (editId) {
+    const ev = findEvent(editId); if (!ev) return toast('Reunião não encontrada', 'err');
+    Object.assign(ev, base, { updatedAt: Date.now(), updatedBy: session.user });
+    await save('events', 'Reunião atualizada ✓'); logHistory('editou', `reunião "${subject}" em ${fmtDMY(base.date)}`);
+  } else {
+    state.events.push({ ...base, id: uid(), tasks: [], rsvp: {}, comments: [], createdBy: session.user, createdAt: Date.now() });
+    await save('events', 'Reunião marcada ✓'); logHistory('marcou', `reunião "${subject}" em ${fmtDMY(base.date)} com ${parts.map(nameOf).join(', ')}`);
+  }
+  form.reset(); E.editId.value = ''; const m = getModal('day'); if (m) E.date.value = m.data.date;
+  ACT['mt-all']($('[data-act=mt-all]', form)); $('#mt-submit', form).textContent = 'Marcar reunião';
+};
+
+/* ---------- aba FÉRIAS: dias corridos, prévia, conflitos + folga avulsa do dia ---------- */
+function vacationFormHtml(s) {
+  const now = new Date();
+  const months = Array.from({ length: 13 }, (_, i) => { const d = new Date(now.getFullYear(), now.getMonth() + i, 1); return `<option value="${d.getFullYear()}-${pad2(d.getMonth() + 1)}">${capitalize(MONTHS[d.getMonth()])} ${d.getFullYear()}</option>`; }).join('');
+  return `<form class="section" data-submit="save-vacation" id="vac-form" autocomplete="off"><h3>🏝️ Cadastrar férias</h3>
+    <div class="grid2"><div class="field"><label>Pessoa</label><select name="who" data-change="vac-preview">${peopleOptions('')}</select></div><div class="field"><label>Mês</label><select name="month" data-change="vac-preview">${months}</select></div></div>
+    <div class="grid2"><div class="field"><label>Dia de início</label><input class="input" type="number" name="day" min="1" max="31" value="1" data-input="vac-preview"></div><div class="field"><label>Quantos dias (corridos)</label><input class="input" type="number" name="days" min="2" max="40" value="10" data-input="vac-preview"></div></div>
+    <div id="vac-preview"></div>
+    <button class="btn btn-primary" type="submit">Cadastrar férias</button>
+  </form>
+  <div class="section"><h3>📅 Férias cadastradas <span class="right muted">de hoje em diante</span></h3><div id="vac-list"></div></div>
+  <div class="section"><h3>🏖️ Folga avulsa em ${fmtDMY(s)}</h3><div class="hint mb">Integral 🏖️ ou parcial 🌗 (manhã/tarde). Folga não conta como carga do mês.</div><div id="folga-day"></div></div>`;
+}
+function vacRange(form) {
+  const E = form.elements; const [y, m] = E.month.value.split('-').map(Number);
+  const day = Math.min(Math.max(1, Number(E.day.value) || 1), daysInMonth(y, m - 1));
+  const days = Math.min(40, Math.max(2, Number(E.days.value) || 2));
+  const start = ymd(new Date(y, m - 1, day));
+  return { who: E.who.value, start, end: addDaysYmd(start, days - 1), days };
+}
+function paintVacPreview(form) {
+  if (!form) return; const r = vacRange(form), el = $('#vac-preview', form); if (!el) return;
+  const conflicts = state.events.filter(ev => ev.date >= r.start && ev.date <= r.end && isLoad(ev) && involves(ev, r.who));
+  const overlap = (state.folgas || []).filter(f => f.who === r.who && f.tipo === 'ferias' && f.start <= r.end && f.end >= r.start);
+  el.innerHTML = `<div class="ok-box">De <b>${fmtDMY(r.start)}</b> a <b>${fmtDMY(r.end)}</b> — ${r.days} dias corridos (fim de semana e feriado entram na conta).</div>`
+    + (conflicts.length ? `<div class="warn-box">⚠️ Colide com ${conflicts.length} compromisso(s) de ${esc(nameOf(r.who))}: ${conflicts.slice(0, 5).map(ev => `${fmtDM(ev.date)} ${esc(ev.title)}`).join('; ')}${conflicts.length > 5 ? '…' : ''}</div>` : '')
+    + (overlap.length ? '<div class="warn-box">⚠️ Já existem férias dessa pessoa nesse período.</div>' : '');
+}
+CHG['vac-preview'] = el => paintVacPreview(el.closest('form'));
+INP['vac-preview'] = el => paintVacPreview(el.closest('form'));
+SUB['save-vacation'] = async form => {
+  const r = vacRange(form);
+  state.folgas.push({ id: uid(), who: r.who, tipo: 'ferias', start: r.start, end: r.end, periodo: 'integral', createdBy: session.user, createdAt: Date.now() });
+  await save('folgas', 'Férias cadastradas ✓'); logHistory('cadastrou', `férias de ${nameOf(r.who)}: ${fmtDMY(r.start)} a ${fmtDMY(r.end)}`);
+  paintVacPreview(form);
+};
+function paintVacationList(root) {
+  const el = $('#vac-list', root); if (!el) return; const t = todayYmd(), m = getModal('day'); if (!m) return;
+  const list = (state.folgas || []).filter(f => f.tipo === 'ferias' && f.end >= t).sort((a, b) => a.start.localeCompare(b.start));
+  el.innerHTML = list.length
+    ? list.map(f => `<div class="task-item">${personChip(f.who)}<span class="tx">${fmtDMY(f.start)} → ${fmtDMY(f.end)} <span class="muted">(${Math.round((parseYmd(f.end) - parseYmd(f.start)) / 864e5) + 1} dias)</span></span><button class="btn btn-xs btn-danger" data-act="cancel-off" data-id="${f.id}">cancelar</button></div>`).join('')
+    : '<div class="empty">Nenhuma férias de hoje em diante.</div>';
+  const fd = $('#folga-day', root); if (!fd) return; const s = m.data.date;
+  fd.innerHTML = people().map(k => {
+    const f = (state.folgas || []).find(x => x.who === k && x.tipo === 'folga' && x.start === s), cur = f ? f.periodo : '';
+    return `<div class="task-item">${personChip(k)}<span class="tx"></span><div class="row nowrap">${[['', '— trabalha'], ['integral', '🏖️ integral'], ['manha', '🌗 manhã'], ['tarde', '🌗 tarde']].map(([v, l]) => `<button class="btn btn-xs ${cur === v ? 'on' : ''}" data-act="set-folga" data-who="${k}" data-periodo="${v}">${l}</button>`).join('')}</div></div>`;
+  }).join('');
+}
+ACT['cancel-off'] = async el => {
+  const f = state.folgas.find(x => x.id === el.dataset.id); if (!f) return;
+  if (!confirm(`Cancelar ${f.tipo === 'ferias' ? 'as férias' : 'a folga'} de ${nameOf(f.who)}?`)) return;
+  state.folgas = state.folgas.filter(x => x.id !== f.id);
+  await save('folgas', 'Cancelado ✓'); logHistory('cancelou', `${f.tipo} de ${nameOf(f.who)} (${fmtDMY(f.start)})`);
+};
+ACT['set-folga'] = async el => {
+  const m = getModal('day'); if (!m) return; const s = m.data.date, who = el.dataset.who, per = el.dataset.periodo;
+  state.folgas = (state.folgas || []).filter(x => !(x.who === who && x.tipo === 'folga' && x.start === s));
+  if (per) state.folgas.push({ id: uid(), who, tipo: 'folga', start: s, end: s, periodo: per, createdBy: session.user, createdAt: Date.now() });
+  await save('folgas', per ? 'Folga marcada ✓' : 'Folga removida'); logHistory(per ? 'marcou' : 'removeu', `folga ${per || ''} de ${nameOf(who)} em ${fmtDMY(s)}`);
+};
+
+/* ---------- painel da EQUIPE (Ludmylla/Rosilene): nota do dia + pedir troca ---------- */
+function viewerDayPanel(s) {
+  const my = session.user, note = (state.notes[my] || {})[s] || { text: '', icon: '📝' };
+  return `<div class="section"><h3>${note.icon} Minha nota do dia</h3>
+    <form data-submit="save-note" autocomplete="off">
+      <div class="icon-pick mb">${NOTE_ICONS.map(i => `<button type="button" class="${note.icon === i ? 'on' : ''}" data-act="note-icon" data-icon="${i}">${i}</button>`).join('')}<input type="hidden" name="icon" value="${note.icon}"></div>
+      <textarea name="text" maxlength="1000" placeholder="Lembrete pessoal, observação, o que quiser…">${esc(note.text)}</textarea>
+      <div class="row mt"><button class="btn btn-primary" type="submit">Salvar nota</button>${note.text ? '<button type="button" class="btn" data-act="delete-note">Apagar</button>' : ''}</div>
+    </form></div>
+    <div class="section"><h3>🔁 Trocar este dia</h3><form data-submit="request-swap" autocomplete="off">
+      <div class="grid2"><div class="field"><label>Com quem</label><select name="to">${people().filter(k => k !== my).map(k => `<option value="${k}">${esc(nameOf(k))}</option>`).join('')}</select></div><div class="field"><label>Pelo dia dele(a)</label><input class="input" type="date" name="newDate" required></div></div>
+      <div class="field"><label>Mensagem</label><input class="input" name="msg" maxlength="200" placeholder="Ex.: preciso resolver uma coisa pessoal"></div>
+      <button class="btn" type="submit">Pedir troca</button></form></div>
+    <div class="hint">Você pode confirmar presença e comentar nos compromissos acima — é só clicar em um deles.</div>`;
+}
+ACT['note-icon'] = el => { const f = el.closest('form'); f.elements.icon.value = el.dataset.icon; $$('.icon-pick button', f).forEach(b => b.classList.toggle('on', b === el)); };
+SUB['save-note'] = async form => {
+  const m = getModal('day'); if (!m) return; const s = m.data.date, my = session.user;
+  state.notes[my] = state.notes[my] || {};
+  const text = form.elements.text.value.trim();
+  if (text) state.notes[my][s] = { text, icon: form.elements.icon.value, at: Date.now() }; else delete state.notes[my][s];
+  await save('notes', 'Nota salva ✓');
+  const st = $('#dm-static', m.body); if (st) st.innerHTML = viewerDayPanel(s);
+};
+ACT['delete-note'] = async () => {
+  const m = getModal('day'); if (!m) return; const s = m.data.date, my = session.user;
+  if (state.notes[my]) delete state.notes[my][s];
+  await save('notes', 'Nota apagada');
+  const st = $('#dm-static', m.body); if (st) st.innerHTML = viewerDayPanel(s);
+};
+SUB['request-swap'] = async form => {
+  const E = form.elements, m = getModal('day'); if (!m) return; const s = m.data.date, to = E.to.value;
+  if (!to || to === session.user) return toast('Escolha um colega', 'err');
+  if (!E.newDate.value) return toast('Escolha o dia do colega', 'err');
+  state.requests.unshift({ id: uid(), kind: 'troca', from: session.user, to, date: s, newDate: E.newDate.value, msg: E.msg.value.trim(), status: 'pendente', at: Date.now() });
+  await save('requests', 'Pedido de troca enviado ✓'); logHistory('pediu', `troca do dia ${fmtDMY(s)} com ${nameOf(to)} pelo dia ${fmtDMY(E.newDate.value)}`);
+  form.reset();
+};
+ACT['edit-event'] = el => { const ev = findEvent(el.dataset.id); if (!ev) return; closeModal('event'); openDayModal(ev.date, { editId: ev.id }); };
+
+/* =====================================================================
+ * 14. CARTÃO DO EVENTO — só fecha no X. RSVP, tarefas, lembrete,
+ * comentários com @menção, edição/exclusão (gestor), pedir substituição.
+ * ===================================================================== */
+function openEventCard(id) {
+  if (!findEvent(id)) return toast('Evento não encontrado', 'err');
+  openModal({ id: 'event', title: '', closeOnBackdrop: false, live: true, data: { id }, paint: paintEventCard });
+}
+function paintEventCard(body, m) {
+  const ev = findEvent(m.data.id);
+  if (!ev) { body.innerHTML = '<div class="empty">Este evento foi excluído.</div>'; setModalTitle('event', 'Evento excluído', ''); return; }
+  const my = session.user, draft = $('#ec-comment', body) ? $('#ec-comment', body).value : '';
+  setModalTitle('event', `${ev.pinned ? '📌 ' : ''}${typeOf(ev).ico} ${esc(ev.title)}`,
+    `${fmtLong(parseYmd(ev.date))}${ev.allDay || !ev.start ? ' · dia todo' : ` · ${ev.start}${ev.end ? '–' + ev.end : ''}`}`);
+  const ps = eventPeople(ev), canEdit = isAdmin(), mine = involves(ev, my), pr = PRIORITIES[ev.priority] || PRIORITIES.media;
+  const rsvp = ev.rsvp || {}, myR = rsvp[my];
+  const rem = (state.reminders || []).find(r => r.eventId === ev.id && r.who === my);
+  const link = safeUrl(ev.link);
+  body.innerHTML = `
+    <div class="row mb">${ps.map(personChip).join('')}${ps.length > 1 ? personChip('todos') : ''}</div>
+    <div class="ev-meta">
+      <span>${typeOf(ev).ico} ${typeOf(ev).label}</span>
+      <span class="prio-${ev.priority || 'media'}">${pr.ico} Prioridade ${pr.label.toLowerCase()}</span>
+      ${ev.local ? `<span>📍 ${esc(ev.local)}</span>` : ''}
+      ${link ? `<span>🔗 <a href="${esc(link)}" target="_blank" rel="noopener noreferrer">abrir link</a></span>` : ''}
+      ${ev.private ? '<span>🔒 Privado</span>' : ''}${ev.seriesId ? '<span>🔁 Parte de uma série</span>' : ''}
+      ${isHoliday(ev.date) ? `<span>🎌 ${esc(isHoliday(ev.date))}</span>` : ''}
+    </div>
+    ${ev.desc ? `<div class="section"><div class="ev-desc">${richText(ev.desc)}</div></div>` : ''}
+    ${(ev.tasks || []).length ? `<div class="section"><h3>✅ Tarefas <span class="right muted">${ev.tasks.filter(t => t.done).length}/${ev.tasks.length}</span></h3><div class="task-list">${ev.tasks.map(t => {
+        const can = canEdit || t.who === my, tp = PRIORITIES[t.priority] || PRIORITIES.media;
+        return `<label class="task-item ${t.done ? 'done' : ''}"><input type="checkbox" ${t.done ? 'checked' : ''} ${can ? '' : 'disabled'} data-change="toggle-task" data-id="${ev.id}" data-task="${t.id}">${avatarImg(t.who, 'avatar xs')}<span class="tx"><b>${esc(nameOf(t.who))}</b> · ${esc(t.text || t.role)}</span><span class="meta prio-${t.priority || 'media'}">${tp.ico}${t.done && t.doneAt ? ' ✓ ' + fmtWhen(t.doneAt) : ''}</span></label>`;
+      }).join('')}</div></div>` : ''}
+    ${ev.kind !== 'tarefa' ? `<div class="section"><h3>🙋 Presença</h3>
+      ${my ? `<div class="rsvp-btns">${[['sim', '✅ Vou'], ['talvez', '❓ Talvez'], ['nao', '❌ Não vou']].map(([v, l]) => `<button class="btn btn-sm ${myR === v ? 'on' : ''}" data-act="rsvp" data-id="${ev.id}" data-v="${v}">${l}</button>`).join('')}</div>` : ''}
+      <div class="rsvp-list">${Object.keys(rsvp).length ? Object.entries(rsvp).map(([k, v]) => `<span class="person-chip" style="${colorVars(k)}">${avatarImg(k, 'avatar xs')} ${esc(nameOf(k))} ${{ sim: '✅', talvez: '❓', nao: '❌' }[v] || ''}</span>`).join('') : '<span class="muted small">Ninguém confirmou ainda.</span>'}</div></div>` : ''}
+    ${my ? `<div class="section"><h3>🔔 Lembrete</h3><div class="row">${[15, 30, 60, 1440].map(mi => `<button class="btn btn-sm ${rem && rem.minutes === mi ? 'on' : ''}" data-act="reminder" data-id="${ev.id}" data-min="${mi}">${mi >= 1440 ? '1 dia' : mi + ' min'} antes</button>`).join('')}${rem ? `<button class="btn btn-sm" data-act="reminder" data-id="${ev.id}" data-min="0">✕ remover</button>` : ''}</div><div class="hint">Toca neste navegador, com o app aberto.</div></div>` : ''}
+    <div class="section"><h3>💬 Comentários <span class="right muted">${(ev.comments || []).length}</span></h3>
+      ${(ev.comments || []).map(c => `<div class="comment"><div class="meta">${avatarImg(c.by, 'avatar xs')} <b>${esc(nameOf(c.by))}</b> · ${fmtWhen(c.at)}${(c.by === my || canEdit) ? ` <button class="btn btn-xs right" data-act="del-comment" data-id="${ev.id}" data-c="${c.id}" title="Apagar">✕</button>` : ''}</div><div>${richText(c.text)}</div></div>`).join('') || '<div class="empty">Sem comentários.</div>'}
+      ${my ? `<form data-submit="add-comment" data-id="${ev.id}" autocomplete="off"><div class="row mb">${people().filter(k => k !== my).map(k => `<button type="button" class="btn btn-xs" data-act="mention" data-name="${esc(nameOf(k))}">@${esc(nameOf(k))}</button>`).join('')}</div><textarea id="ec-comment" name="text" maxlength="500" placeholder="Escreva um comentário… use @nome para mencionar">${esc(draft)}</textarea><div class="row mt"><button class="btn btn-primary btn-sm" type="submit">Comentar</button></div></form>` : ''}
+    </div>
+    <div class="row">
+      ${canEdit ? `<button class="btn" data-act="edit-event" data-id="${ev.id}">✏️ Editar</button><button class="btn" data-act="toggle-pin" data-id="${ev.id}">${ev.pinned ? '📌 Desafixar' : '📌 Fixar'}</button><button class="btn btn-danger" data-act="delete-event" data-id="${ev.id}">🗑️ Excluir</button>${ev.seriesId ? `<button class="btn btn-danger" data-act="delete-series" data-id="${ev.id}">🗑️ Excluir série</button>` : ''}` : ''}
+      ${my && mine ? `<button class="btn" data-act="req-sub" data-id="${ev.id}">🔁 Pedir substituição</button>` : ''}
+    </div>
+    <div class="hint mt">Criado por ${esc(nameOf(ev.createdBy))}${ev.createdAt ? ' em ' + fmtWhen(ev.createdAt) : ''}${ev.updatedAt ? ` · editado ${fmtWhen(ev.updatedAt)} por ${esc(nameOf(ev.updatedBy))}` : ''}</div>`;
+}
+async function toggleTask(evId, taskId, done) {
+  const ev = findEvent(evId), t = ev && (ev.tasks || []).find(x => x.id === taskId); if (!t) return;
+  if (!(isAdmin() || t.who === session.user)) return toast('Só quem recebeu a tarefa pode marcá-la', 'err');
+  t.done = !!done; t.doneAt = done ? Date.now() : null; t.doneBy = done ? session.user : null;
+  ev.updatedAt = Date.now(); ev.updatedBy = session.user;
+  await save('events', done ? 'Tarefa concluída ✓' : 'Tarefa reaberta');
+  logHistory(done ? 'concluiu' : 'reabriu', `tarefa "${t.text || t.role}" em "${ev.title}"`);
+}
+ACT.rsvp = async el => {
+  const ev = findEvent(el.dataset.id); if (!ev || !session.user) return; ev.rsvp = ev.rsvp || {};
+  if (ev.rsvp[session.user] === el.dataset.v) delete ev.rsvp[session.user]; else ev.rsvp[session.user] = el.dataset.v;
+  await save('events', 'Presença registrada ✓');
+};
+ACT.reminder = async el => {
+  const min = Number(el.dataset.min);
+  state.reminders = (state.reminders || []).filter(r => !(r.eventId === el.dataset.id && r.who === session.user));
+  if (min) state.reminders.push({ id: uid(), eventId: el.dataset.id, who: session.user, minutes: min, firedAt: null });
+  await save('reminders', min ? 'Lembrete definido ✓' : 'Lembrete removido');
+};
+ACT.mention = el => { const ta = $('#ec-comment'); if (!ta) return; ta.value = (ta.value ? ta.value.replace(/\s*$/, ' ') : '') + '@' + el.dataset.name + ' '; ta.focus(); };
+SUB['add-comment'] = async form => {
+  const ev = findEvent(form.dataset.id), text = form.elements.text.value.trim(); if (!ev || !text) return;
+  ev.comments = ev.comments || []; ev.comments.push({ id: uid(), by: session.user, text, at: Date.now() });
+  form.elements.text.value = '';
+  await save('events', 'Comentário publicado ✓');
+};
+ACT['del-comment'] = async el => { const ev = findEvent(el.dataset.id); if (!ev) return; ev.comments = (ev.comments || []).filter(c => c.id !== el.dataset.c); await save('events', 'Comentário removido'); };
+ACT['toggle-pin'] = async el => { const ev = findEvent(el.dataset.id); if (!ev) return; ev.pinned = !ev.pinned; await save('events', ev.pinned ? 'Fixado 📌' : 'Desafixado'); };
+function purgeEventIds(ids) {
+  state.events = state.events.filter(e => !ids.has(e.id));
+  ids.forEach(i => delete state.customColors[i]);
+  state.reminders = (state.reminders || []).filter(r => !ids.has(r.eventId));
+  save('customColors'); save('reminders');
+}
+ACT['delete-event'] = async el => {
+  const ev = findEvent(el.dataset.id); if (!ev || !confirm(`Excluir "${ev.title}"?`)) return;
+  purgeEventIds(new Set([ev.id])); closeModal('event');
+  await save('events', 'Evento excluído'); logHistory('excluiu', `evento "${ev.title}" de ${fmtDMY(ev.date)}`);
+};
+ACT['delete-series'] = async el => {
+  const ev = findEvent(el.dataset.id); if (!ev || !ev.seriesId) return;
+  const ids = new Set(state.events.filter(e => e.seriesId === ev.seriesId).map(e => e.id));
+  if (!confirm(`Excluir toda a série (${ids.size} eventos)?`)) return;
+  purgeEventIds(ids); closeModal('event');
+  await save('events', 'Série excluída'); logHistory('excluiu', `série "${ev.title}" (${ids.size} eventos)`);
+};
+ACT['req-sub'] = el => {
+  const ev = findEvent(el.dataset.id); if (!ev) return; const my = session.user;
+  openModal({ id: 'reqsub', title: '🔁 Pedir substituição', sub: esc(ev.title), narrow: true, live: false, paint: body => {
+    body.innerHTML = `<form data-submit="request-sub" data-id="${ev.id}"><div class="field"><label>Quem me substitui</label><select name="to">${people().filter(k => k !== my).map(k => `<option value="${k}">${esc(nameOf(k))}</option>`).join('')}</select></div><div class="field"><label>Mensagem</label><input class="input" name="msg" maxlength="200" placeholder="Motivo, combinação…"></div><div class="hint mb">Quem recebe aceita ou recusa. Ao aceitar, a pessoa assume o seu lugar neste compromisso.</div><button class="btn btn-primary" type="submit">Enviar pedido</button></form>`;
+  } });
+};
+SUB['request-sub'] = async form => {
+  const ev = findEvent(form.dataset.id), to = form.elements.to.value; if (!ev || !to) return;
+  state.requests.unshift({ id: uid(), kind: 'substituicao', from: session.user, to, eventId: ev.id, date: ev.date, msg: form.elements.msg.value.trim(), status: 'pendente', at: Date.now() });
+  closeModal('reqsub');
+  await save('requests', 'Pedido enviado ✓'); logHistory('pediu', `substituição em "${ev.title}" para ${nameOf(to)}`);
+};
+ACT['req-meeting'] = () => {
+  const my = session.user; if (!my) return showLogin();
+  if (isAdmin()) { openDayModal(todayYmd(), { tab: 'reuniao' }); return; } // gestor marca direto
+  openModal({ id: 'reqmeet', title: '📞 Solicitar reunião', narrow: true, live: false, paint: body => {
+    body.innerHTML = `<form data-submit="request-meeting" autocomplete="off"><div class="field"><label>Com quem</label><select name="to"><option value="todos">★ Todos (o gestor aprova)</option>${people().filter(k => k !== my).map(k => `<option value="${k}">${esc(nameOf(k))}</option>`).join('')}</select></div>
+      <div class="grid2"><div class="field"><label>Data</label><input class="input" type="date" name="date" value="${todayYmd()}" required></div><div class="field"><label>Hora</label><input class="input" type="time" name="time" value="10:00" required></div></div>
+      <div class="field"><label>Assunto</label><input class="input" name="subject" required maxlength="120"></div>
+      <div class="hint mb">Quem recebe aceita ou recusa; ao aceitar, a reunião entra no calendário.</div><button class="btn btn-primary" type="submit">Enviar solicitação</button></form>`;
+  } });
+};
+SUB['request-meeting'] = async form => {
+  const E = form.elements, subject = E.subject.value.trim(); if (!subject) return;
+  state.requests.unshift({ id: uid(), kind: 'reuniao', from: session.user, to: E.to.value, date: E.date.value, time: E.time.value, subject, status: 'pendente', at: Date.now() });
+  closeModal('reqmeet');
+  await save('requests', 'Solicitação enviada ✓'); logHistory('solicitou', `reunião "${subject}" com ${nameOf(E.to.value)} em ${fmtDMY(E.date.value)}`);
+};
+
+/* =====================================================================
+ * 15. SOLICITAÇÕES — troca de dia, substituição, reunião. O destinatário
+ * aceita ou recusa; aceitar aplica a mudança no calendário.
+ * ===================================================================== */
+ACT.requests = () => { if (!session.user) return showLogin(); openModal({ id: 'requests', title: '📨 Solicitações', live: true, paint: paintRequests }); };
+function reqDesc(r) {
+  if (r.kind === 'troca') return `<b>${esc(nameOf(r.from))}</b> quer trocar o dia <b>${fmtDMY(r.date)}</b> pelo dia <b>${fmtDMY(r.newDate)}</b> de <b>${esc(nameOf(r.to))}</b>`;
+  if (r.kind === 'substituicao') { const ev = findEvent(r.eventId); return `<b>${esc(nameOf(r.from))}</b> pede que <b>${esc(nameOf(r.to))}</b> assuma <b>${ev ? esc(ev.title) : 'evento excluído'}</b> em ${fmtDMY(r.date)}`; }
+  return `<b>${esc(nameOf(r.from))}</b> solicita reunião com <b>${esc(nameOf(r.to))}</b>: “${esc(r.subject)}” em ${fmtDMY(r.date)} às ${esc(r.time)}`;
+}
+function paintRequests(body) {
+  const my = session.user, all = (state.requests || []).slice().sort((a, b) => b.at - a.at);
+  const forMe = all.filter(r => isRecipient(r, my) && r.from !== my), mine = all.filter(r => r.from === my);
+  const others = isAdmin() ? all.filter(r => !forMe.includes(r) && !mine.includes(r)) : [];
+  const item = (r, canAnswer) => `<div class="req-item"><div class="row"><span class="st ${r.status}">${r.status}</span><span class="muted small">· ${reqLabel(r)} · ${fmtWhen(r.at)}</span></div><div class="mt">${reqDesc(r)}</div>${r.msg ? `<div class="muted small mt">“${esc(r.msg)}”</div>` : ''}${r.status !== 'pendente' && r.respondedBy ? `<div class="hint">${r.status} por ${esc(nameOf(r.respondedBy))} em ${fmtWhen(r.respondedAt)}</div>` : ''}${canAnswer && r.status === 'pendente' ? `<div class="row mt"><button class="btn btn-sm btn-primary" data-act="req-answer" data-id="${r.id}" data-ok="1">✅ Aceitar</button><button class="btn btn-sm" data-act="req-answer" data-id="${r.id}" data-ok="0">❌ Recusar</button></div>` : ''}${r.from === my && r.status === 'pendente' ? `<div class="row mt"><button class="btn btn-xs" data-act="req-cancel" data-id="${r.id}">cancelar pedido</button></div>` : ''}</div>`;
+  body.innerHTML = `<div class="section"><h3>Para mim <span class="right muted">${forMe.filter(r => r.status === 'pendente').length} pendente(s)</span></h3>${forMe.map(r => item(r, true)).join('') || '<div class="empty">Nada pra você responder.</div>'}</div>
+    <div class="section"><h3>Minhas</h3>${mine.map(r => item(r, false)).join('') || '<div class="empty">Você não fez pedidos.</div>'}</div>
+    ${isAdmin() ? `<div class="section"><h3>Entre a equipe</h3>${others.map(r => item(r, true)).join('') || '<div class="empty">Nada entre a equipe.</div>'}</div>` : ''}`;
+}
+ACT['req-cancel'] = async el => { state.requests = state.requests.filter(r => r.id !== el.dataset.id); await save('requests', 'Pedido cancelado'); };
+ACT['req-answer'] = async el => {
+  const r = state.requests.find(x => x.id === el.dataset.id); if (!r || r.status !== 'pendente') return;
+  const ok = el.dataset.ok === '1', my = session.user;
+  if (ok) {
+    if (r.kind === 'troca') {
+      state.events.forEach(ev => {
+        if (ev.date === r.date && involves(ev, r.from)) replacePerson(ev, r.from, r.to);
+        else if (ev.date === r.newDate && involves(ev, r.to)) replacePerson(ev, r.to, r.from);
+      });
+      save('events');
+    } else if (r.kind === 'substituicao') {
+      const ev = findEvent(r.eventId); if (ev) { replacePerson(ev, r.from, r.to); save('events'); }
+    } else if (r.kind === 'reuniao') {
+      const parts = r.to === 'todos' ? people() : [...new Set([r.from, r.to])];
+      const [h, mi] = String(r.time || '10:00').split(':').map(Number); const end = `${pad2(Math.min(23, h + 1))}:${pad2(mi || 0)}`;
+      state.events.push({ id: uid(), kind: 'reuniao', type: 'reuniao', title: r.subject, date: r.date, start: r.time, end, allDay: false, participants: parts,
+        collab: parts.length === 1 ? parts[0] : 'todos', tasks: [], rsvp: {}, comments: [], priority: 'media', createdBy: my, createdAt: Date.now() });
+      save('events');
+    }
+  }
+  r.status = ok ? 'aceita' : 'recusada'; r.respondedBy = my; r.respondedAt = Date.now();
+  await save('requests', ok ? 'Solicitação aceita ✓' : 'Solicitação recusada'); logHistory(ok ? 'aceitou' : 'recusou', `${reqLabel(r).toLowerCase()} de ${nameOf(r.from)}`);
+};
+
+/* =====================================================================
+ * 16. MENSAGENS DIRETAS — abrir a conversa marca como lidas as recebidas
+ * ===================================================================== */
+ACT.messages = el => { if (!session.user) return showLogin(); openMessages(el.dataset.with || null); };
+function openMessages(withKey) {
+  const my = session.user, others = people().filter(k => k !== my);
+  const w = withKey || others.find(k => (state.messages || []).some(m => m.to === my && m.from === k && !m.read)) || others[0];
+  openModal({ id: 'messages', title: '💬 Mensagens', wide: true, live: true, data: { with: w }, paint: paintMessages });
+}
+function paintMessages(body, m) {
+  const my = session.user, w = m.data.with, msgs = state.messages || [];
+  if (!w) { body.innerHTML = '<div class="empty">Não há mais ninguém na equipe pra conversar.</div>'; return; }
+  const draft = $('#msg-text', body) ? $('#msg-text', body).value : '';
+  const thread = msgs.filter(x => (x.from === my && x.to === w) || (x.from === w && x.to === my)).sort((a, b) => a.at - b.at);
+  let changed = false; thread.forEach(x => { if (x.to === my && !x.read) { x.read = true; changed = true; } });
+  if (changed) save('messages');
+  body.innerHTML = `<div class="msg-layout"><div class="msg-people">${people().filter(k => k !== my).map(k => { const n = msgs.filter(x => x.from === k && x.to === my && !x.read).length; return `<div class="team-item ${k === w ? 'on' : ''}" data-act="msg-with" data-key="${k}">${avatarImg(k, 'avatar sm')}<span class="nm">${esc(nameOf(k))}</span>${n ? `<span class="badge" style="position:static">${n}</span>` : ''}</div>`; }).join('')}</div>
+    <div class="msg-thread"><div class="msg-scroll" id="msg-scroll">${thread.length ? thread.map(x => `<div class="bubble ${x.from === my ? 'me' : ''}">${richText(x.text)}<div class="meta">${fmtWhen(x.at)}${x.from === my && x.read ? ' · lida' : ''}</div></div>`).join('') : `<div class="empty">Comece a conversa com ${esc(nameOf(w))}.</div>`}</div>
+    <form class="msg-input" data-submit="send-message" data-to="${w}" autocomplete="off"><input class="input" id="msg-text" name="text" maxlength="500" placeholder="Mensagem para ${esc(nameOf(w))}…" value="${esc(draft)}"><button class="btn btn-primary" type="submit">Enviar</button></form></div></div>`;
+  const sc = $('#msg-scroll', body); if (sc) sc.scrollTop = sc.scrollHeight;
+}
+ACT['msg-with'] = el => { const m = getModal('messages'); if (!m) return; m.data.with = el.dataset.key; m.paint(m.body, m); };
+SUB['send-message'] = async form => {
+  const text = form.elements.text.value.trim(); if (!text) return;
+  state.messages = state.messages || [];
+  state.messages.push({ id: uid(), from: session.user, to: form.dataset.to, text, at: Date.now(), read: false });
+  if (state.messages.length > 600) state.messages = state.messages.slice(-600); // doc do Firestore tem limite de 1 MiB
+  form.elements.text.value = '';
+  await save('messages');
+};
+
+/* =====================================================================
+ * 17. ELOGIOS (kudos) — mural na sidebar; badge até a pessoa abrir
+ * ===================================================================== */
+ACT.kudos = () => { if (!session.user) return showLogin(); openModal({ id: 'kudos', title: '🌟 Elogios', live: true, paint: paintKudos }); };
+function paintKudos(body) {
+  const my = session.user, ks = (state.kudos || []).slice().sort((a, b) => b.at - a.at);
+  let changed = false; ks.forEach(k => { if (k.to === my) { k.seenBy = k.seenBy || []; if (!k.seenBy.includes(my)) { k.seenBy.push(my); changed = true; } } });
+  if (changed) save('kudos');
+  const draft = $('#kudo-text', body) ? $('#kudo-text', body).value : '';
+  body.innerHTML = `<form class="section" data-submit="send-kudo" autocomplete="off"><h3>Mandar um elogio</h3><div class="grid2"><div class="field"><label>Para</label><select name="to">${people().filter(k => k !== my).map(k => `<option value="${k}">${esc(nameOf(k))}</option>`).join('')}</select></div><div class="field"><label>Elogio</label><input class="input" id="kudo-text" name="text" maxlength="200" required placeholder="Ex.: mandou muito bem na rota de ontem!" value="${esc(draft)}"></div></div><button class="btn btn-primary" type="submit">🌟 Enviar elogio</button></form>
+    <div class="section"><h3>Mural</h3>${ks.length ? ks.slice(0, 50).map(k => `<div class="kudo">${avatarImg(k.to, 'avatar xs')} <b>${esc(nameOf(k.to))}</b> — ${esc(k.text)}<div class="meta">de ${esc(nameOf(k.from))} · ${fmtWhen(k.at)}</div></div>`).join('') : '<div class="empty">Ninguém elogiou ainda.</div>'}</div>`;
+}
+SUB['send-kudo'] = async form => {
+  const E = form.elements, text = E.text.value.trim(); if (!text) return;
+  state.kudos = state.kudos || []; state.kudos.push({ id: uid(), from: session.user, to: E.to.value, text, at: Date.now(), seenBy: [session.user] });
+  if (state.kudos.length > 300) state.kudos = state.kudos.slice(-300);
+  E.text.value = '';
+  await save('kudos', 'Elogio enviado 🌟'); logHistory('elogiou', `${nameOf(E.to.value)}: "${text}"`);
+};
+
+/* =====================================================================
+ * 18. MEU DIA — 3 prioridades, blocos de tempo e foco contínuo
+ * priorities[pessoa][data] = ['p1','p2','p3']; blocks[pessoa][data] = [...];
+ * userPriorities[pessoa] = focos que atravessam a semana.
+ * ===================================================================== */
+ACT['my-day'] = () => { if (!session.user) return showLogin(); openModal({ id: 'myday', title: '☀️ Meu dia', live: false, closeOnBackdrop: false, data: { date: todayYmd() }, paint: paintMyDay }); };
+function paintMyDay(body, m) {
+  const my = session.user, s = m.data.date;
+  const pr = ((state.priorities[my] || {})[s]) || ['', '', ''];
+  const blocks = (((state.blocks[my] || {})[s]) || []).slice().sort((a, b) => a.start.localeCompare(b.start));
+  const focus = state.userPriorities[my] || [];
+  const evs = eventsOn(s).filter(ev => involves(ev, my));
+  body.innerHTML = `<div class="row mb"><button class="btn btn-sm" data-act="myday-shift" data-n="-1">←</button><b class="serif" style="font-size:16px">${fmtLong(parseYmd(s))}</b><button class="btn btn-sm" data-act="myday-shift" data-n="1">→</button>${s !== todayYmd() ? '<button class="btn btn-sm" data-act="myday-shift" data-n="0">hoje</button>' : ''}</div>
+    <form class="section" data-submit="save-priorities" autocomplete="off"><h3>🎯 3 prioridades do dia</h3>${[0, 1, 2].map(i => `<input class="input mb" name="p${i}" maxlength="100" placeholder="Prioridade ${i + 1}" value="${esc(pr[i] || '')}">`).join('')}<button class="btn btn-primary btn-sm" type="submit">Salvar prioridades</button></form>
+    <div class="section"><h3>⏱️ Blocos de tempo reservados</h3>${blocks.length ? blocks.map(b => `<div class="block-item"><b>${esc(b.start)}–${esc(b.end)}</b><span class="flex1">${esc(b.label)}</span><button class="btn btn-xs" data-act="block-remove" data-id="${b.id}">✕</button></div>`).join('') : '<div class="empty">Nenhum bloco reservado.</div>'}
+      <form class="row mt" data-submit="add-block" autocomplete="off"><input class="input" type="time" name="start" value="09:00" style="width:110px"><input class="input" type="time" name="end" value="10:00" style="width:110px"><input class="input flex1" name="label" maxlength="80" placeholder="Ex.: conferência do estoque" required><button class="btn btn-sm" type="submit">+ bloco</button></form></div>
+    <div class="section"><h3>📌 Foco contínuo</h3><div class="hint mb">Coisas que atravessam a semana — ficam aqui até você tirar.</div>${focus.length ? focus.map((f, i) => `<div class="block-item"><span class="flex1">${esc(f)}</span><button class="btn btn-xs" data-act="focus-remove" data-i="${i}">✕</button></div>`).join('') : '<div class="empty">Nada por enquanto.</div>'}<form class="row mt" data-submit="add-focus" autocomplete="off"><input class="input flex1" name="text" maxlength="100" required placeholder="Novo foco"><button class="btn btn-sm" type="submit">+ foco</button></form></div>
+    <div class="section"><h3>📅 Compromissos do dia</h3>${evs.length ? `<div class="list-ev">${evs.map(ev => `<div class="item" style="${eventStyle(ev)}" data-act="open-event" data-id="${ev.id}"><span>${typeOf(ev).ico}</span><span class="t">${esc(ev.title)}</span><span class="hh">${ev.allDay || !ev.start ? 'dia todo' : ev.start}</span></div>`).join('')}</div>` : '<div class="empty">Dia livre de compromissos.</div>'}</div>`;
+}
+ACT['myday-shift'] = el => { const m = getModal('myday'); if (!m) return; const n = Number(el.dataset.n); m.data.date = n ? addDaysYmd(m.data.date, n) : todayYmd(); m.paint(m.body, m); };
+SUB['save-priorities'] = async form => {
+  const m = getModal('myday'), my = session.user; if (!m) return;
+  state.priorities[my] = state.priorities[my] || {};
+  const arr = [0, 1, 2].map(i => form.elements['p' + i].value.trim());
+  if (arr.some(Boolean)) state.priorities[my][m.data.date] = arr; else delete state.priorities[my][m.data.date];
+  await save('priorities', 'Prioridades salvas ✓');
+};
+SUB['add-block'] = async form => {
+  const m = getModal('myday'), my = session.user, E = form.elements; if (!m || !E.label.value.trim()) return;
+  if (E.end.value <= E.start.value) return toast('O fim deve ser depois do início', 'err');
+  state.blocks[my] = state.blocks[my] || {};
+  (state.blocks[my][m.data.date] = state.blocks[my][m.data.date] || []).push({ id: uid(), start: E.start.value, end: E.end.value, label: E.label.value.trim() });
+  await save('blocks', 'Bloco reservado ✓'); m.paint(m.body, m);
+};
+ACT['block-remove'] = async el => { const m = getModal('myday'), my = session.user; if (!m) return; const list = (state.blocks[my] || {})[m.data.date] || []; state.blocks[my][m.data.date] = list.filter(b => b.id !== el.dataset.id); await save('blocks'); m.paint(m.body, m); };
+SUB['add-focus'] = async form => { const m = getModal('myday'), my = session.user; if (!m) return; (state.userPriorities[my] = state.userPriorities[my] || []).push(form.elements.text.value.trim()); await save('userPriorities', 'Foco adicionado ✓'); m.paint(m.body, m); };
+ACT['focus-remove'] = async el => { const m = getModal('myday'), my = session.user; if (!m) return; (state.userPriorities[my] || []).splice(Number(el.dataset.i), 1); await save('userPriorities'); m.paint(m.body, m); };
+
+/* =====================================================================
+ * 19. DIÁRIO PESSOAL — por data, contador de palavras e histórico
+ * ===================================================================== */
+ACT.diary = () => { if (!session.user) return showLogin(); openModal({ id: 'diary', title: '📓 Diário', live: false, closeOnBackdrop: false, data: { date: todayYmd() }, paint: paintDiary }); };
+const wordCount = t => (String(t || '').trim().match(/\S+/g) || []).length;
+function paintDiary(body, m) {
+  const my = session.user, s = m.data.date, all = state.diary[my] || {}, entry = all[s];
+  const dates = Object.keys(all).sort().reverse();
+  body.innerHTML = `<form data-submit="save-diary" autocomplete="off"><div class="row mb"><input class="input" type="date" name="date" value="${s}" data-change="diary-date" style="width:170px"><span class="muted small">${entry ? 'editado ' + fmtWhen(entry.at) : 'sem registro neste dia'}</span></div>
+    <textarea name="text" id="diary-text" style="min-height:220px" maxlength="5000" data-input="diary-wc" placeholder="Como foi o dia? O que deu certo, o que travou, o que aprendeu…">${esc(entry ? entry.text : '')}</textarea>
+    <div class="wc" id="diary-wc">${wordCount(entry ? entry.text : '')} palavras</div>
+    <div class="row mt"><button class="btn btn-primary" type="submit">Salvar</button>${entry ? '<button type="button" class="btn" data-act="diary-delete">Apagar</button>' : ''}</div></form>
+    <div class="section mt"><h3>Histórico <span class="right muted">${dates.length} dia(s)</span></h3><div class="diary-hist">${dates.map(d => `<button class="btn btn-xs ${d === s ? 'on' : ''}" data-act="diary-open" data-date="${d}">${fmtDM(d)} · ${wordCount(all[d].text)} p.</button>`).join('') || '<span class="empty">Nenhum registro ainda.</span>'}</div></div>`;
+}
+INP['diary-wc'] = el => { const c = $('#diary-wc'); if (c) c.textContent = `${wordCount(el.value)} palavras`; };
+CHG['diary-date'] = el => { const m = getModal('diary'); if (!m) return; m.data.date = el.value; m.paint(m.body, m); };
+ACT['diary-open'] = el => { const m = getModal('diary'); if (!m) return; m.data.date = el.dataset.date; m.paint(m.body, m); };
+SUB['save-diary'] = async form => {
+  const m = getModal('diary'), my = session.user; if (!m) return; const text = form.elements.text.value.trim();
+  state.diary[my] = state.diary[my] || {};
+  if (text) state.diary[my][m.data.date] = { text, at: Date.now() }; else delete state.diary[my][m.data.date];
+  await save('diary', 'Diário salvo ✓'); m.paint(m.body, m);
+};
+ACT['diary-delete'] = async () => { const m = getModal('diary'), my = session.user; if (!m || !confirm('Apagar o registro deste dia?')) return; if (state.diary[my]) delete state.diary[my][m.data.date]; await save('diary', 'Registro apagado'); m.paint(m.body, m); };
+
+/* =====================================================================
+ * 20. INSIGHTS DO MÊS — barras nas cores da equipe (com contorno e rótulo
+ * direto, porque cor sozinha não identifica ninguém), tipos e heatmap.
+ * ===================================================================== */
+ACT.insights = () => openModal({ id: 'insights', title: '📊 Insights', live: true, paint: paintInsights });
+function paintInsights(body) {
+  const y = ui.cursor.getFullYear(), mo = ui.cursor.getMonth(), p = `${y}-${pad2(mo + 1)}-`;
+  const evs = state.events.filter(ev => ev.date && ev.date.startsWith(p) && canSee(ev) && isLoad(ev));
+  const perPerson = people().map(k => [k, evs.filter(ev => involves(ev, k)).length]), maxP = Math.max(1, ...perPerson.map(x => x[1]));
+  const perType = Object.entries(EVENT_TYPES).map(([k, t]) => [k, t, evs.filter(ev => ev.type === k).length]).filter(x => x[2] > 0).sort((a, b) => b[2] - a[2]), maxT = Math.max(1, ...perType.map(x => x[2]));
+  const perDow = [0, 0, 0, 0, 0, 0, 0]; evs.forEach(ev => perDow[parseYmd(ev.date).getDay()]++); const maxD = Math.max(1, ...perDow);
+  const tasks = evs.flatMap(ev => ev.tasks || []), done = tasks.filter(t => t.done).length;
+  const meetings = evs.filter(ev => ev.type === 'reuniao').length;
+  const offDays = (state.folgas || []).filter(f => f.start.startsWith(p) || f.end.startsWith(p)).length;
+  setModalTitle('insights', `📊 Insights de ${MONTHS[mo]} ${y}`, 'Folgas e férias não entram na carga.');
+  body.innerHTML = `<div class="stat-tiles"><div class="tile"><b>${evs.length}</b><span>compromissos</span></div><div class="tile"><b>${tasks.length ? Math.round(done / tasks.length * 100) : 0}%</b><span>tarefas feitas (${done}/${tasks.length})</span></div><div class="tile"><b>${meetings}</b><span>reuniões</span></div><div class="tile"><b>${offDays}</b><span>folgas / férias</span></div></div>
+    <div class="section"><h3>👥 Compromissos por pessoa</h3>${perPerson.map(([k, n]) => `<div class="bar-row"><span class="lbl">${avatarImg(k, 'avatar xs')} ${esc(nameOf(k))}</span><div class="bar" title="${esc(nameOf(k))}: ${n}"><i class="${n ? '' : 'zero'}" style="width:${Math.round(n / maxP * 100)}%;--bg:var(--c-${k})"></i></div><span class="n">${n}</span></div>`).join('')}</div>
+    <div class="section"><h3>📦 Distribuição por tipo</h3>${perType.length ? perType.map(([k, t, n]) => `<div class="bar-row"><span class="lbl">${t.ico} ${t.label}</span><div class="bar" title="${t.label}: ${n}"><i style="width:${Math.round(n / maxT * 100)}%"></i></div><span class="n">${n}</span></div>`).join('') : '<div class="empty">Sem eventos neste mês.</div>'}</div>
+    <div class="section"><h3>🔥 Dia da semana mais ocupado</h3><div class="heat">${perDow.map((n, i) => { const a = n / maxD; return `<div style="background:rgba(91,155,239,${(0.1 + a * 0.8).toFixed(2)});${a > 0.55 ? 'color:#1A1438' : ''}" title="${WEEKDAYS_LONG[i]}: ${n}">${WEEKDAYS[i]}<b>${n}</b></div>`; }).join('')}</div></div>`;
+}
+
+/* ---------- histórico e status da equipe ---------- */
+ACT.history = () => openModal({ id: 'history', title: '🕘 Histórico', live: true, paint: body => {
+  const h = (state.history || []).slice(0, 150);
+  body.innerHTML = h.length ? h.map(x => `<div class="hist-item"><span class="when">${fmtWhen(x.at)}</span>${avatarImg(x.by, 'avatar xs')}<span><b>${esc(nameOf(x.by))}</b> ${esc(x.action)} ${esc(x.detail)}</span></div>`).join('') : '<div class="empty">Nenhuma ação registrada.</div>';
+} });
+ACT['team-status'] = () => openTeamStatus();
+function openTeamStatus(focusKey) {
+  openModal({ id: 'teamstatus', title: '👥 Equipe hoje', sub: fmtLong(new Date()), live: true, paint: body => {
+    const t = todayYmd();
+    body.innerHTML = people().map(k => {
+      const st = dayStatusOf(k, t), off = offFor(k, t), evs = eventsOn(t).filter(ev => involves(ev, k)), nx = evs.filter(ev => eventEnd(ev) >= Date.now())[0], p = person(k);
+      return `<div class="section" style="${k === focusKey ? 'box-shadow:var(--shadow)' : ''}"><div class="row">${avatarImg(k, 'avatar lg')}<div class="flex1"><div class="serif" style="font-size:20px;font-weight:600">${esc(p.nome)} ${p.role === 'admin' ? '<span class="role-tag">gestor</span>' : ''}</div><div class="muted small">📍 ${esc(p.cidade || 'sem cidade')}${state.birthdays[k] ? ' · 🎂 ' + state.birthdays[k].split('-').reverse().join('/') : ''}</div></div><div style="text-align:right"><div style="font-size:22px">${off ? offLabel(off).split(' ')[0] : st ? st.ico : '❔'}</div><div class="small"><b>${off ? offLabel(off).replace(/^\S+ /, '') : st ? st.label : 'sem status'}</b></div></div></div>
+        <div class="row mt small"><span>📅 ${evs.length} compromisso(s) hoje</span>${nx ? `<span>· próximo: <b>${esc(nx.title)}</b> ${nx.start || ''}</span>` : ''}${session.user && k !== session.user ? `<button class="btn btn-xs right" data-act="messages" data-with="${k}">💬 mensagem</button>` : ''}</div></div>`;
+    }).join('');
+  } });
+}
+
+/* =====================================================================
+ * 21. GERENCIAR EQUIPE (gestor) — nome, cor, cidade, foto, aniversário,
+ * papel, ativo; adicionar pessoa cria conta + PIN. Fotos vão em doc
+ * separado (equipeFotos) como data URL pra não inchar o doc equipe.
+ * ===================================================================== */
+ACT['team-manage'] = () => { if (!isAdmin()) return; openModal({ id: 'team', title: '👥 Gerenciar equipe', wide: true, live: false, closeOnBackdrop: false, paint: paintTeam }); };
+function paintTeam(body) {
+  body.innerHTML = Object.entries(getEquipe()).map(([k, p]) => `<form class="team-edit ${p.ativo === false ? 'inactive' : ''}" data-submit="save-person" data-key="${k}" autocomplete="off">
+      <div><img class="avatar lg" src="${esc(photoOf(k))}" alt=""><label class="btn btn-xs mt" style="cursor:pointer">📷 foto<input type="file" accept="image/*" hidden data-change="photo" data-key="${k}"></label></div>
+      <div>
+        <div class="grid3"><div class="field"><label>Nome</label><input class="input" name="nome" value="${esc(p.nome)}" required maxlength="40"></div><div class="field"><label>Cor</label><div class="row nowrap"><input type="color" name="cor" value="${esc(p.cor)}"><span class="muted small">chave: ${k}</span></div></div><div class="field"><label>Cidade (clima)</label><input class="input" name="cidade" value="${esc(p.cidade || '')}" maxlength="60"></div></div>
+        <div class="grid3"><div class="field"><label>Aniversário (DD/MM)</label><input class="input" name="aniv" value="${state.birthdays[k] ? state.birthdays[k].split('-').reverse().join('/') : ''}" placeholder="DD/MM"></div><div class="field"><label>Papel</label><select name="role" ${k === session.user ? 'disabled' : ''}><option value="viewer" ${p.role !== 'admin' ? 'selected' : ''}>equipe</option><option value="admin" ${p.role === 'admin' ? 'selected' : ''}>gestor</option></select></div><div class="field"><label>Ativo</label><label class="toggle" style="margin-top:6px"><input type="checkbox" name="ativo" ${p.ativo !== false ? 'checked' : ''} ${k === session.user ? 'disabled' : ''}> ${p.ativo !== false ? 'na equipe' : 'desativado'}</label></div></div>
+        <div class="row"><button class="btn btn-sm btn-primary" type="submit">Salvar</button><span class="muted small">${esc(p.email)}</span></div>
+      </div></form>`).join('')
+    + `<form class="section" data-submit="add-person" autocomplete="off"><h3>➕ Adicionar pessoa</h3>
+      <div class="grid3"><div class="field"><label>Nome</label><input class="input" name="nome" required maxlength="40"></div><div class="field"><label>Cor</label><input type="color" name="cor" value="#F5B942"></div><div class="field"><label>Cidade</label><input class="input" name="cidade" maxlength="60"></div></div>
+      <div class="grid3"><div class="field"><label>PIN (4 dígitos)</label><input class="input" name="pin" inputmode="numeric" maxlength="4" ${DEMO ? '' : 'required'}></div><div class="field"><label>Papel</label><select name="role"><option value="viewer">equipe</option><option value="admin">gestor</option></select></div></div>
+      <div class="hint mb">${DEMO ? 'No modo demonstração a pessoa entra sem PIN.' : 'Cria a conta no Firebase Auth e a entrada no pinMap na hora. A pessoa já consegue entrar com esse PIN.'}</div>
+      <button class="btn btn-primary" type="submit">Adicionar</button></form>
+    <div class="hint">Quem é desativado sai da equipe ativa mas continua no histórico. A chave nunca muda, mesmo que o nome mude.</div>`;
+}
+SUB['save-person'] = async form => {
+  const k = form.dataset.key, eq = ensureEquipe(), p = eq[k]; if (!p) return; const E = form.elements;
+  p.nome = E.nome.value.trim() || p.nome; p.cor = E.cor.value; p.cidade = E.cidade.value.trim();
+  if (!E.role.disabled) p.role = E.role.value;
+  if (!E.ativo.disabled) p.ativo = E.ativo.checked;
+  const mm = E.aniv.value.trim().match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (mm) state.birthdays[k] = `${pad2(mm[2])}-${pad2(mm[1])}`; else delete state.birthdays[k];
+  save('birthdays');
+  await save('equipe', `${p.nome} atualizado(a) ✓`); logHistory('editou', `dados de ${p.nome}`);
+  const m = getModal('team'); if (m) m.paint(m.body, m); loadWeather();
+};
+CHG.photo = el => {
+  const file = el.files && el.files[0]; if (!file) return; const k = el.dataset.key;
+  const img = new Image(), url = URL.createObjectURL(file);
+  img.onload = async () => {
+    const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+    const s = Math.min(img.width, img.height); g.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 128, 128);
+    state.equipeFotos[k] = c.toDataURL('image/jpeg', 0.82); URL.revokeObjectURL(url);
+    await save('equipeFotos', 'Foto atualizada ✓'); const m = getModal('team'); if (m) m.paint(m.body, m);
+  };
+  img.onerror = () => toast('Não consegui ler essa imagem', 'err');
+  img.src = url;
+};
+SUB['add-person'] = async form => {
+  const E = form.elements, nome = E.nome.value.trim(), pin = E.pin.value.trim(); if (!nome) return;
+  if (!DEMO && !/^\d{4}$/.test(pin)) return toast('PIN de 4 dígitos', 'err');
+  const eq = ensureEquipe(); let key = slug(nome), i = 2; while (eq[key]) key = slug(nome) + i++;
+  const email = `${key}@${EMAIL_DOMAIN}`;
+  const btn = $('button[type=submit]', form); btn.disabled = true;
+  try {
+    if (!DEMO) {
+      const snap = await db.collection('pinMap').doc('map').get();
+      if (snap.exists && snap.data()[await sha256(pin)]) throw new Error('esse PIN já está em uso — escolha outro');
+      await registerPin(email, pin);
+    }
+    eq[key] = { nome, cor: E.cor.value, cidade: E.cidade.value.trim(), email, ativo: true, role: E.role.value, foto: '' };
+    await save('equipe', `${nome} adicionado(a) ✓`); logHistory('adicionou', `${nome} à equipe`);
+    form.reset(); const m = getModal('team'); if (m) m.paint(m.body, m);
+  } catch (e) { toast('Não deu: ' + (e.message || e), 'err'); }
+  finally { btn.disabled = false; }
+};
+
+/* =====================================================================
+ * 22. PREFERÊNCIAS (locais) + notificações + trocar PIN
+ * ===================================================================== */
+ACT.prefs = () => openModal({ id: 'prefs', title: '⚙️ Preferências', narrow: true, live: false, paint: body => {
+  const perm = 'Notification' in window ? Notification.permission : 'unsupported';
+  body.innerHTML = `<div class="section"><h3>Aparência</h3><label class="toggle mb"><input type="checkbox" data-change="pref-theme" ${ui.theme === 'dark' ? 'checked' : ''}> Tema escuro</label><br><label class="toggle mb"><input type="checkbox" data-change="pref-festivo" ${ui.festivo ? 'checked' : ''}> Modo festivo (flocos e confetes em datas especiais)</label><div class="field mt"><label>Semana começa em</label><select data-change="pref-weekstart"><option value="0" ${ui.weekStart === 0 ? 'selected' : ''}>Domingo</option><option value="1" ${ui.weekStart === 1 ? 'selected' : ''}>Segunda</option></select></div><div class="hint">Estas preferências são deste aparelho e não sincronizam.</div></div>
+    <div class="section"><h3>Notificações do navegador</h3><div class="small mb">Status: <b>${{ granted: 'permitidas ✓', denied: 'bloqueadas no navegador', default: 'ainda não pedidas', unsupported: 'não suportadas' }[perm]}</b></div>${perm === 'default' ? '<button class="btn btn-sm" data-act="notif-ask">Permitir notificações</button>' : ''}${perm === 'granted' ? '<button class="btn btn-sm" data-act="notif-test">Testar</button>' : ''}</div>
+    ${session.user && !DEMO && auth ? `<form class="section" data-submit="change-pin" autocomplete="off"><h3>Trocar meu PIN</h3><div class="grid2"><div class="field"><label>PIN atual</label><input class="input" type="password" name="old" inputmode="numeric" maxlength="4" required></div><div class="field"><label>Novo PIN</label><input class="input" type="password" name="new" inputmode="numeric" maxlength="4" required></div></div><button class="btn btn-sm btn-primary" type="submit">Trocar PIN</button></form>` : ''}
+    <div class="section"><h3>Sobre</h3><div class="small">Calendário Logística v${APP_VERSION} · ${DEMO ? 'modo demonstração' : 'projeto ' + esc(FIREBASE_CONFIG.projectId)}</div><button class="btn btn-xs mt" data-act="clear-cache">Limpar cache local</button></div>`;
+} });
+CHG['pref-theme'] = el => { ui.theme = el.checked ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', ui.theme); lsSet('lg_theme', ui.theme); renderHeader(); };
+CHG['pref-festivo'] = el => { ui.festivo = el.checked; lsSet('lg_festivo', el.checked ? '1' : '0'); if (el.checked) maybeCelebrate(true); else stopFx(); };
+CHG['pref-weekstart'] = el => { ui.weekStart = Number(el.value); lsSet('lg_weekStart', el.value); render(); };
+ACT['notif-ask'] = () => { Notification.requestPermission().then(() => { const m = getModal('prefs'); if (m) m.paint(m.body, m); }); };
+ACT['notif-test'] = () => notify('🔔 Teste', 'As notificações estão funcionando.');
+ACT['clear-cache'] = () => { if (!confirm('Limpar o cache local? Os dados no Firestore continuam intactos.')) return; STATE_KEYS.forEach(k => { try { localStorage.removeItem('lg_data_' + k); } catch (e) {} }); toast('Cache limpo — recarregue a página'); };
+SUB['change-pin'] = async form => {
+  const E = form.elements; if (!/^\d{4}$/.test(E.new.value)) return toast('O novo PIN precisa ter 4 dígitos', 'err');
+  try {
+    const snap = await db.collection('pinMap').doc('map').get();
+    if (snap.exists && snap.data()[await sha256(E.new.value)]) throw new Error('esse PIN já está em uso');
+    await changeMyPin(E.old.value, E.new.value); toast('PIN alterado ✓', 'ok'); form.reset();
+  } catch (e) { toast('Não deu: ' + (['auth/wrong-password', 'auth/invalid-credential'].includes(e.code) ? 'PIN atual incorreto' : e.message), 'err'); }
+};
+
+/* ---------- clima de todas as cidades ---------- */
+ACT.weather = () => openModal({ id: 'weather', title: '🌤️ Clima da operação', live: false, paint: async body => {
+  const cities = [...new Set(people().map(k => person(k).cidade).filter(Boolean))];
+  if (!cities.length) { body.innerHTML = '<div class="empty">Nenhuma cidade cadastrada na equipe.</div>'; return; }
+  body.innerHTML = cities.map(c => `<div class="wx-card" id="wx-${slug(c)}"><b>${esc(c)}</b> <span class="muted small">carregando…</span></div>`).join('');
+  for (const c of cities) {
+    const el = $('#wx-' + slug(c), body); if (!el) continue;
+    try {
+      const w = await fetchWeather(c), [ico, lbl] = wmo(w.current.code), who = people().filter(k => person(k).cidade === c).map(nameOf).join(', ');
+      el.innerHTML = `<div class="wx-now"><span class="big">${ico}</span><div><div class="temp">${w.current.temp}°C</div><div class="small">${lbl} · vento ${w.current.wind} km/h · umidade ${w.current.hum}%</div></div><div class="right small" style="text-align:right"><b>${esc(w.city)}</b>${w.admin ? '<br>' + esc(w.admin) : ''}<br><span class="muted">${esc(who)}</span></div></div>
+        <div class="wx-days">${w.daily.map(d => { const [i, l] = wmo(d.code); return `<div title="${l}"><span class="i">${i}</span>${WEEKDAYS[parseYmd(d.date).getDay()]}<br><b>${d.max}°</b> ${d.min}°<br>💧${d.pop == null ? '–' : d.pop + '%'}</div>`; }).join('')}</div>`;
+    } catch (e) { el.innerHTML = `<b>${esc(c)}</b> <span class="muted small">não foi possível carregar (${esc(e.message)})</span>`; }
+  }
+} });
+
+/* ---------- backup JSON / restaurar / imprimir ---------- */
+ACT.backup = () => openModal({ id: 'backup', title: '💾 Backup', narrow: true, live: false, paint: body => {
+  body.innerHTML = `<div class="section"><h3>Exportar</h3><div class="small mb">Baixa um JSON com tudo: eventos, equipe, mensagens, diário…</div><button class="btn btn-primary btn-sm" data-act="export-json">⬇️ Baixar backup JSON</button></div>
+    ${isAdmin() ? `<div class="section"><h3>Restaurar</h3><div class="small mb">Substitui os dados atuais pelos do arquivo. Faça um backup antes.</div><label class="btn btn-sm" style="cursor:pointer">⬆️ Escolher arquivo<input type="file" accept="application/json,.json" hidden data-change="import-json"></label></div>` : ''}
+    <div class="section"><h3>Imprimir</h3><div class="small mb">Gera a vista atual em PDF pelo diálogo de impressão do navegador.</div><button class="btn btn-sm" data-act="print">🖨️ Imprimir / PDF</button></div>`;
+} });
+ACT['export-json'] = () => {
+  const data = { app: 'calendario-logistica', version: APP_VERSION, exportedAt: new Date().toISOString(), by: session.user, state: Object.fromEntries(STATE_KEYS.map(k => [k, state[k]])) };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `backup-logistica-${todayYmd()}.json`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000); toast('Backup gerado ✓', 'ok');
+};
+CHG['import-json'] = el => {
+  const f = el.files && el.files[0]; if (!f) return; const r = new FileReader();
+  r.onload = async () => {
+    try {
+      const j = JSON.parse(r.result), src = j.state || j, keys = STATE_KEYS.filter(k => k in src);
+      if (!keys.length) throw new Error('arquivo sem dados reconhecíveis');
+      if (!confirm(`Restaurar ${keys.length} chave(s): ${keys.join(', ')}? Isso substitui os dados atuais.`)) return;
+      for (const k of keys) { state[k] = normalizeVal(k, src[k]); await window.storage.set(k, state[k]); }
+      render(); toast('Backup restaurado ✓', 'ok'); logHistory('restaurou', `backup de ${j.exportedAt || 'data desconhecida'}`);
+    } catch (e) { toast('Backup inválido: ' + e.message, 'err'); }
+  };
+  r.readAsText(f);
+};
+
+/* =====================================================================
+ * 23. TELA DE LOGIN (PIN) + configuração inicial das contas
+ * ===================================================================== */
+let pinBuf = '', loggingIn = false;
+function showLogin() {
+  const el = $('#login-screen'); el.hidden = false; pinBuf = '';
+  const demoPeople = Object.keys(SEED_EQUIPE).concat(people().filter(k => !SEED_EQUIPE[k]));
+  el.innerHTML = `<div class="login-card"><img src="logo.png" alt=""><h1>Logística</h1><div class="sub">calendário da equipe</div>
+    ${DEMO
+      ? `<div class="warn-box" style="text-align:left">Modo demonstração, sem Firebase. Escolha quem você é:</div><div class="demo-people">${demoPeople.map(k => `<button class="btn" data-act="demo-login" data-key="${k}">${avatarImg(k, 'avatar sm')} ${esc(nameOf(k))} <span class="muted small">· ${person(k).role === 'admin' ? 'gestor' : 'equipe'}</span></button>`).join('')}</div>`
+      : `<div class="small muted">Digite seu PIN de 4 dígitos</div>
+        <div class="pin-boxes" data-act="pin-focus"><span class="on"></span><span></span><span></span><span></span></div>
+        <input class="pin-hidden" id="pin-input" type="password" inputmode="numeric" pattern="\\d*" maxlength="4" autocomplete="one-time-code" data-input="pin" aria-label="PIN">
+        <div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button class="btn" data-act="pin-key" data-k="${n}">${n}</button>`).join('')}<button class="btn" data-act="pin-key" data-k="del">⌫</button><button class="btn" data-act="pin-key" data-k="0">0</button><button class="btn btn-primary" data-act="pin-key" data-k="ok">→</button></div>
+        <div class="login-msg ${HAS_FIREBASE ? '' : 'err'}" id="login-msg">${HAS_FIREBASE ? '' : 'O Firebase não carregou. Verifique a internet.'}</div>
+        <div id="setup-wrap" class="mt"></div>
+        ${lsGet('lg_lastUser', '') && !HAS_FIREBASE ? '<button class="btn btn-sm mt" data-act="offline-view">Ver dados salvos (somente leitura)</button>' : ''}`}
+    </div>`;
+  if (!DEMO && db) checkSetupNeeded();
+  setTimeout(() => { const i = $('#pin-input'); if (i) i.focus(); }, 50);
+}
+function hideLogin() { $('#login-screen').hidden = true; }
+function paintPin() {
+  $$('.pin-boxes span').forEach((s, i) => { s.textContent = pinBuf[i] ? '•' : ''; s.classList.toggle('on', i === pinBuf.length); });
+  const i = $('#pin-input'); if (i && i.value !== pinBuf) i.value = pinBuf;
+}
+INP.pin = el => { pinBuf = el.value.replace(/\D/g, '').slice(0, 4); paintPin(); if (pinBuf.length === 4) submitPin(); };
+ACT['pin-focus'] = () => { const i = $('#pin-input'); if (i) i.focus(); };
+ACT['pin-key'] = el => {
+  const k = el.dataset.k;
+  if (k === 'del') pinBuf = pinBuf.slice(0, -1);
+  else if (k === 'ok') { if (pinBuf.length === 4) submitPin(); return; }
+  else if (pinBuf.length < 4) pinBuf += k;
+  paintPin(); if (pinBuf.length === 4) submitPin();
+};
+async function submitPin() {
+  if (loggingIn) return; loggingIn = true;
+  const msg = $('#login-msg'); msg.className = 'login-msg'; msg.textContent = 'Entrando…';
+  try { await loginWithPin(pinBuf); msg.className = 'login-msg ok'; msg.textContent = 'Bem-vindo(a)!'; }
+  catch (e) { msg.className = 'login-msg err'; msg.textContent = friendlyAuthError(e); pinBuf = ''; paintPin(); }
+  finally { loggingIn = false; }
+}
+function friendlyAuthError(e) {
+  const c = (e && e.code) || '';
+  if (e && e.message === 'timeout') return 'Sem resposta do Firebase. Verifique a conexão e, se for a primeira vez, as credenciais.';
+  if (['auth/wrong-password', 'auth/invalid-credential', 'auth/user-not-found', 'auth/invalid-login-credentials'].includes(c)) return 'PIN não confere com a conta. Confira o PIN ou fale com o gestor.';
+  if (c === 'auth/network-request-failed') return 'Sem conexão. Tente de novo.';
+  if (c === 'auth/too-many-requests') return 'Muitas tentativas. Aguarde um pouco.';
+  if (c.startsWith('auth/invalid-api-key') || c.startsWith('auth/api-key')) return 'Credenciais do Firebase inválidas (veja SETUP-FIREBASE.md).';
+  if (c === 'auth/operation-not-allowed') return 'Ative "E-mail/senha" em Authentication no console do Firebase.';
+  return (e && e.message) || 'Erro ao entrar.';
+}
+async function checkSetupNeeded() {
+  try {
+    const snap = await withTimeout(db.collection('pinMap').doc('map').get(), 10000); if (snap.exists) return;
+    const w = $('#setup-wrap'); if (!w) return;
+    w.innerHTML = '<div class="hint mb">Primeira vez aqui? As contas ainda não existem.</div><button class="btn btn-accent" data-act="setup-open">Configurar contas</button>';
+  } catch (e) { /* offline ou sem permissão de leitura: não mostra nada */ }
+}
+ACT['setup-open'] = () => {
+  const w = $('#setup-wrap'); if (!w) return;
+  w.innerHTML = `<form data-submit="setup-accounts" class="section" style="text-align:left" autocomplete="off"><h3>Definir os PINs</h3><div class="hint mb">Cada pessoa terá um PIN de 4 dígitos, todos diferentes. Anote e passe pra cada um.</div>
+    ${Object.entries(SEED_EQUIPE).map(([k, p]) => `<div class="field"><label>${esc(p.nome)} (${p.role === 'admin' ? 'gestor' : 'equipe'})</label><input class="input" name="pin_${k}" inputmode="numeric" maxlength="4" required placeholder="4 dígitos"></div>`).join('')}
+    <button class="btn btn-primary btn-block" type="submit">Criar contas e entrar</button></form>`;
+};
+SUB['setup-accounts'] = async form => {
+  const pins = {}; for (const k of Object.keys(SEED_EQUIPE)) pins[k] = form.elements['pin_' + k].value.trim();
+  if (Object.values(pins).some(p => !/^\d{4}$/.test(p))) return toast('Todos os PINs precisam ter 4 dígitos', 'err');
+  if (new Set(Object.values(pins)).size !== Object.keys(pins).length) return toast('Os PINs precisam ser diferentes entre si', 'err');
+  const btn = $('button[type=submit]', form); btn.disabled = true; btn.textContent = 'Criando…';
+  try { await setupAccounts(pins); toast('Contas criadas ✓', 'ok'); }
+  catch (e) { toast('Erro: ' + friendlyAuthError(e), 'err'); btn.disabled = false; btn.textContent = 'Criar contas e entrar'; }
+};
+ACT['demo-login'] = el => startSession(el.dataset.key);
+ACT['offline-view'] = () => { const k = lsGet('lg_lastUser', ''); if (k) startSession(k); };
+
+/* =====================================================================
+ * 24. LEMBRETES — checados a cada 30 s; firedAt sincroniza pra não tocar
+ * em dois aparelhos. Se passou da hora com o app fechado, não toca atrasado.
+ * ===================================================================== */
+function checkReminders() {
+  const my = session.user; if (!my) return; const now = Date.now(); let changed = false;
+  (state.reminders || []).forEach(r => {
+    if (r.who !== my || r.firedAt) return; const ev = findEvent(r.eventId); if (!ev) return;
+    const at = eventStart(ev).getTime() - r.minutes * 60e3;
+    if (now >= at && now < at + 30 * 60e3) { notify('🔔 Lembrete', `${ev.title} — ${ev.allDay || !ev.start ? fmtWD(ev.date) : ev.start}`); r.firedAt = now; changed = true; }
+    else if (now >= at + 30 * 60e3) { r.firedAt = now; changed = true; }
+  });
+  if (changed) save('reminders');
+}
+
+/* =====================================================================
+ * 25. FLOCOS E CONFETES em datas festivas (desligável nas preferências)
+ * ===================================================================== */
+let fxRaf = 0;
+function startFx(kind, seconds = 14) {
+  const cv = $('#fx'); if (!cv) return; stopFx();
+  cv.hidden = false; const g = cv.getContext('2d');
+  const resize = () => { cv.width = innerWidth; cv.height = innerHeight; }; resize();
+  const colors = ['#5B9BEF', '#F27DAD', '#5FCB6A', '#F5B942', '#1A1438'];
+  const snowColor = ui.theme === 'dark' ? '#FFFFFF' : '#9EC5F0';
+  const ps = Array.from({ length: kind === 'snow' ? 70 : 110 }, () => ({
+    x: Math.random() * cv.width, y: Math.random() * -cv.height,
+    r: kind === 'snow' ? 2 + Math.random() * 3 : 5 + Math.random() * 5,
+    vy: kind === 'snow' ? 0.6 + Math.random() * 1.2 : 1.5 + Math.random() * 2.5,
+    vx: (Math.random() - 0.5) * (kind === 'snow' ? 0.6 : 2),
+    c: kind === 'snow' ? snowColor : colors[Math.floor(Math.random() * colors.length)], a: Math.random() * Math.PI * 2
+  }));
+  const until = Date.now() + seconds * 1000;
+  const step = () => {
+    g.clearRect(0, 0, cv.width, cv.height);
+    ps.forEach(p => {
+      p.y += p.vy; p.x += p.vx + Math.sin(p.a += 0.02) * 0.4;
+      if (p.y > cv.height + 10) { p.y = -10; p.x = Math.random() * cv.width; }
+      g.fillStyle = p.c;
+      if (kind === 'snow') { g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.fill(); }
+      else { g.save(); g.translate(p.x, p.y); g.rotate(p.a); g.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2); g.restore(); }
+    });
+    if (Date.now() < until) fxRaf = requestAnimationFrame(step); else stopFx();
+  };
+  fxRaf = requestAnimationFrame(step);
+}
+function stopFx() { cancelAnimationFrame(fxRaf); const cv = $('#fx'); if (cv) { cv.hidden = true; cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); } }
+function festiveKind(dateStr) {
+  const md = dateStr.slice(5);
+  if (md === '12-24' || md === '12-25') return 'snow';
+  if (md === '12-31' || md === '01-01') return 'confetti';
+  if ((isHoliday(dateStr) || '').startsWith('Carnaval')) return 'confetti';
+  if (birthdaysOn(dateStr).length) return 'confetti';
+  return null;
+}
+function maybeCelebrate(force) { if (!ui.festivo) return; const k = festiveKind(todayYmd()); if (k) startFx(k); else if (force) startFx('confetti', 4); }
+
+/* ---------- dados de exemplo: só no modo demonstração, só na primeira vez ---------- */
+function seedDemo() {
+  if (lsGet('lg_demo_seeded', '') || state.events.length) return;
+  const d = n => addDaysYmd(todayYmd(), n);
+  const ev = o => ({ id: uid(), kind: 'evento', allDay: false, priority: 'media', rsvp: {}, comments: [], createdBy: 'alberto', createdAt: Date.now() - 864e5, ...o });
+  state.events = [
+    ev({ title: 'Rota Zona Norte', type: 'rota', date: d(0), start: '07:00', end: '12:00', collab: 'ludmylla', local: 'CD Guarulhos', tasks: [{ id: uid(), who: 'ludmylla', role: 'Rota', priority: 'alta', done: false }], comments: [{ id: uid(), by: 'ludmylla', text: 'Saindo agora, @Alberto. Previsão de voltar 11h30.', at: Date.now() - 36e5 }] }),
+    ev({ title: 'Entrega Atacado Sul', type: 'entrega', date: d(0), start: '14:00', end: '16:00', collab: 'rosilene', tasks: [{ id: uid(), who: 'rosilene', role: 'Expedição', priority: 'media', done: false }] }),
+    ev({ title: 'Reunião semanal de rotas', kind: 'reuniao', type: 'reuniao', date: d(1), start: '09:00', end: '09:45', collab: 'todos', participants: ['alberto', 'ludmylla', 'rosilene'], tasks: [], rsvp: { ludmylla: 'sim' } }),
+    ev({ title: 'Coleta fornecedor de embalagens', type: 'coleta', date: d(2), start: '10:00', end: '11:30', collab: 'ludmylla', tasks: [{ id: uid(), who: 'ludmylla', role: 'Rota', priority: 'baixa', done: true, doneAt: Date.now() }] }),
+    ev({ title: 'Inventário galpão B', type: 'inventario', date: d(3), start: '08:00', end: '17:00', collab: 'todos', pinned: true, tasks: [{ id: uid(), who: 'alberto', role: 'Responsável', priority: 'alta', done: false }, { id: uid(), who: 'rosilene', role: 'Conferência', priority: 'alta', done: false }] }),
+    ev({ title: 'Manutenção preventiva da empilhadeira', type: 'manutencao', date: d(5), start: '13:00', end: '15:00', collab: 'alberto', tasks: [{ id: uid(), who: 'alberto', role: 'Responsável', priority: 'media', done: false }] }),
+    ev({ title: 'Tarefas de Rosilene', kind: 'tarefa', type: 'tarefa', date: d(1), allDay: true, start: '', end: '', collab: 'rosilene', tasks: [{ id: uid(), who: 'rosilene', text: 'Separar pedidos 1042–1058', role: 'Tarefa', priority: 'alta', done: false }, { id: uid(), who: 'rosilene', text: 'Conferir notas da coleta', role: 'Tarefa', priority: 'media', done: false }] })
+  ];
+  state.kudos = [{ id: uid(), from: 'alberto', to: 'ludmylla', text: 'Rota de ontem sem nenhuma devolução. Mandou bem!', at: Date.now() - 36e5, seenBy: ['alberto'] }];
+  state.messages = [{ id: uid(), from: 'ludmylla', to: 'alberto', text: 'Alberto, a coleta de depois de amanhã confirmou 10h.', at: Date.now() - 72e5, read: false }];
+  state.folgas = [{ id: uid(), who: 'rosilene', tipo: 'folga', start: d(4), end: d(4), periodo: 'tarde', createdBy: 'alberto', createdAt: Date.now() }];
+  state.requests = [{ id: uid(), kind: 'substituicao', from: 'rosilene', to: 'ludmylla', eventId: state.events[1].id, date: d(0), msg: 'Consulta médica à tarde.', status: 'pendente', at: Date.now() - 18e5 }];
+  state.statuses = { [todayYmd()]: { alberto: 'cd', ludmylla: 'rota' } };
+  state.history = [{ id: uid(), at: Date.now() - 864e5, by: 'alberto', action: 'criou', detail: 'os eventos de exemplo' }];
+  STATE_KEYS.forEach(k => cache.set(k, JSON.stringify(state[k]))); lsSet('lg_demo_seeded', '1');
+}
+
+/* =====================================================================
+ * 26. INICIALIZAÇÃO
+ * ===================================================================== */
+function init() {
+  if (DEMO) $('#demo-bar').hidden = false;
+  tickClock(); setInterval(tickClock, 1000);
+  setInterval(checkReminders, 30000);
+  setInterval(() => { if (ui.view !== 'month' && !ui.modals.length) renderView(); }, 60000); // linha do "agora"
+  const setTop = () => document.documentElement.style.setProperty('--top-h', ($('#topbar').offsetHeight + (DEMO ? $('#demo-bar').offsetHeight : 0)) + 'px');
+  setTop(); window.addEventListener('resize', () => { setTop(); if (innerWidth > 900) toggleDrawer(false); }); // drawer aberto não pode travar o scroll no desktop
+  document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) { const r = $('#search-results'); if (r) r.hidden = true; } });
+  render();
+  showLogin(); // onAuthStateChanged esconde se já houver sessão
+  if (DEMO) { const last = lsGet('lg_lastUser', ''); if (last && getEquipe()[last]) startSession(last); }
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+init();
+})();
+</script>
+</body>
+</html>
