@@ -87,31 +87,37 @@ Mantenha as aspas. Assim que nenhum valor começar com `COLE_AQUI`, o modo demon
 > Essas credenciais não são segredo (ficam no HTML de qualquer app Firebase). Quem protege os dados
 > são as regras do passo 4 e o login por PIN.
 
-## 6. Publicar no Render (site estático)
+## 6. Publicar no Render como Static Site
 
-O Render publica a partir de um repositório Git. Se a pasta ainda não é um repositório:
+O código já está no GitHub: <https://github.com/alcinadadosti-worspace/logicalendar> (branch `main`).
+Cada `git push` republica o site automaticamente.
 
-```bash
-git init
-git add .
-git commit -m "Calendário Logística"
-# crie um repositório vazio no GitHub e depois:
-git remote add origin https://github.com/SEU-USUARIO/calendario-logistica.git
-git push -u origin main
-```
+1. <https://dashboard.render.com> → **New +** → **Static Site**.
+2. Conecte a conta do GitHub (se ainda não estiver) e escolha o repositório **logicalendar**.
+3. Preencha o formulário assim:
 
-Depois, no Render:
+| Campo | Valor |
+|---|---|
+| Name | `calendario-logistica` (vira o começo da URL) |
+| Branch | `main` |
+| Root Directory | em branco |
+| Build Command | em branco |
+| Publish Directory | `public` |
 
-1. <https://dashboard.render.com> → **New +** → **Blueprint** → conecte o repositório.
-   O Render lê o `render.yaml` e cria o serviço `calendario-logistica` como **Static Site**
-   com pasta de publicação `./public` e o header `Cache-Control: no-cache`.
-   - Alternativa manual: **New +** → **Static Site**, *Build Command* em branco, *Publish directory* = `public`,
-     e em **Headers** adicione `/*` → `Cache-Control` → `no-cache`.
-2. Ao terminar, copie a URL (`https://calendario-logistica.onrender.com` ou parecida).
-3. Volte ao Firebase → Authentication → Settings → **Domínios autorizados** → adicione essa URL (sem `https://`).
+4. Clique em **Deploy Static Site** e espere o primeiro deploy terminar.
+5. No serviço criado: **Settings** → **Headers** → **Add Header** → Path `/*`, Name `Cache-Control`,
+   Value `no-cache` → **Save**. Sem isso o navegador pode segurar um `index.html` antigo por horas
+   depois de uma atualização.
+6. Copie a URL (`https://calendario-logistica.onrender.com` ou parecida).
+7. Volte ao Firebase → Authentication → Settings → **Domínios autorizados** → adicione essa URL (sem `https://`).
 
-Cada `git push` republica o site. Como o `index.html` é servido com `no-cache`, a versão nova chega
-em todos os celulares no próximo carregamento.
+> O `render.yaml` na raiz descreve exatamente este mesmo serviço (`runtime: static`,
+> `staticPublishPath: ./public`, header `no-cache`). Ele **não** é usado no caminho acima: fica só
+> como referência da configuração. Se o painel do Render sugerir "usar o render.yaml" ou criar um
+> Blueprint, pode ignorar.
+
+Como o `index.html` é servido com `no-cache`, a versão nova chega em todos os celulares no próximo
+carregamento.
 
 ## 7. Primeiro acesso: criar as contas
 

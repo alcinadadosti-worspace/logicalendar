@@ -1,5 +1,7 @@
-# Blueprint do Render: site estático servido direto da pasta ./public.
-# Crie um serviço NOVO (não reaproveite o do outro calendário).
+# Configuração do serviço no Render: Static Site servido direto da pasta ./public.
+# O site é criado pelo painel (New + → Static Site, Publish Directory = public); este arquivo
+# documenta a mesma configuração e não precisa ser importado. Crie um serviço NOVO,
+# não reaproveite o do outro calendário.
 services:
   - type: web
     name: calendario-logistica
