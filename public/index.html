@@ -225,8 +225,43 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
 .daynum{display:flex;align-items:center;gap:4px;font-weight:700;font-size:13px;min-width:0}
 .daynum .n{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0}
 .daynum .hol{font-size:10px;color:var(--danger);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
-/* marca da nota pessoal no canto do dia: só quem escreveu enxerga a própria */
-.daynum .note-dot{margin-left:auto;font-size:13px;line-height:1;flex-shrink:0}
+/* Marca da nota pessoal no canto do dia (só quem escreveu enxerga a própria):
+   uma pastinha que levanta, abre a aba e deixa a folha subir quando o ponteiro
+   passa pelo dia — mecânica da pasta do reactbits.dev, reduzida a 26px. O ícone
+   fica numa camada própria e nunca se deforma: quem inclina é a superfície
+   colorida atrás dele, senão o emoji sairia amassado. */
+.note-fold{--nc:var(--muted);position:relative;margin-left:auto;width:26px;height:20px;flex-shrink:0;transition:transform .25s ease-out}
+.note-fold::before{content:'';position:absolute;inset:0;background:var(--nc);border:1px solid var(--ink);border-radius:1px 4px 4px 4px}
+.note-fold::after{content:'';position:absolute;left:0;bottom:100%;width:11px;height:3px;background:var(--nc);border:1px solid var(--ink);border-bottom:0;border-radius:2px 2px 0 0}
+.note-fold__paper{position:absolute;z-index:1;bottom:2px;left:50%;width:68%;height:74%;background:var(--card);border:1px solid var(--ink);border-radius:2px;transform:translate(-50%,18%);transition:transform .3s ease-in-out}
+.note-fold__front{position:absolute;z-index:2;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-style:normal;line-height:1;transition:transform .3s ease-in-out}
+.note-fold__front::before{content:'';position:absolute;inset:0;z-index:-1;background:var(--nc);border:1px solid var(--ink);border-radius:1px 4px 4px 4px;transform-origin:bottom;transition:transform .3s ease-in-out}
+.cell:hover .note-fold{transform:translateY(-3px)}
+.cell:hover .note-fold__front{transform:translateY(-2px)}
+.cell:hover .note-fold__front::before{transform:skewX(12deg) scaleY(.55)}
+.cell:hover .note-fold__paper{transform:translate(-50%,-46%)}
+@media (prefers-reduced-motion:reduce){
+  .note-fold,.note-fold__paper,.note-fold__front,.note-fold__front::before{transition:none}
+  .cell:hover .note-fold,.cell:hover .note-fold__front,.cell:hover .note-fold__front::before,.cell:hover .note-fold__paper{transform:none}
+  .cell:hover .note-fold__paper{transform:translate(-50%,18%)}
+}
+/* dia com nota colorida: fundo tingido e borda na cor, pra achar de longe */
+.cell.com-nota{border-color:var(--nc);border-width:2px}
+@supports (color:color-mix(in srgb,red,blue)){
+  .cell.com-nota{background:color-mix(in srgb, var(--nc) 15%, var(--card))}
+  .cell.com-nota:hover{background:color-mix(in srgb, var(--nc) 24%, var(--card))}
+  .cell.com-nota.other{background:color-mix(in srgb, var(--nc) 10%, var(--paper))}
+}
+.cell.today.com-nota{border-color:var(--accent)}   /* hoje continua mandando na borda */
+
+/* escolha da cor da nota */
+.color-pick{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.color-pick button{width:28px;height:28px;border:var(--border);border-radius:50%;background:var(--sw,var(--card));cursor:pointer;padding:0;position:relative}
+.color-pick button.nenhuma::after{content:'';position:absolute;left:5px;right:5px;top:50%;height:2px;background:var(--danger);transform:rotate(-45deg)}
+.color-pick button.on{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--ink)}
+.color-pick .outra{display:inline-flex;align-items:center;gap:4px;padding:2px 10px 2px 3px;border:var(--border);border-radius:999px;cursor:pointer;font-size:11px;font-weight:600;background:var(--card)}
+.color-pick .outra input{width:24px;height:24px;padding:0;border:0;background:none;cursor:pointer}
+.color-pick .outra.on{box-shadow:var(--shadow)}
 .chips{display:flex;flex-wrap:wrap;gap:2px}
 .chip{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:1px 6px;border:1px solid var(--ink);border-radius:999px;background:var(--bg,var(--paper-2));color:var(--fg,var(--ink));white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .ev{display:flex;align-items:center;gap:4px;font-size:11px;padding:2px 5px;border:1px solid var(--ink);border-radius:4px;background:var(--bg,var(--card));color:var(--fg,var(--ink));cursor:pointer;overflow:hidden;white-space:nowrap;box-shadow:1px 1px 0 var(--ink);line-height:1.3;min-width:0}
@@ -633,6 +668,20 @@ const DAY_STATUS = {
 };
 const PRIORITIES = { baixa:{ label:'Baixa', ico:'🟢' }, media:{ label:'Média', ico:'🟡' }, alta:{ label:'Alta', ico:'🔴' } };
 const NOTE_ICONS = ['📝','⭐','⚠️','💡','✅','🔥','📦','🚚','💤','🎯'];
+/* Cores para marcar o quadrado do dia de uma nota. A primeira, vazia, é "sem
+ * cor": o dia fica normal e só o ícone aparece. As demais tingem o fundo do
+ * quadrado e pintam a pastinha do marcador, então precisam funcionar sobre
+ * fundo claro e escuro — por isso tons médios, nem pastel nem muito escuros. */
+const NOTE_COLORS = [
+  { cor:'',        nome:'Sem cor' },
+  { cor:'#F2B01E', nome:'Amarelo de carga' },
+  { cor:'#3E8FC4', nome:'Azul de aço' },
+  { cor:'#4F8F52', nome:'Verde' },
+  { cor:'#C4553D', nome:'Vermelho contêiner' },
+  { cor:'#E07B39', nome:'Laranja' },
+  { cor:'#3FA9A0', nome:'Turquesa' },
+  { cor:'#8A6FB0', nome:'Roxo' }
+];
 const HOUR_START = 6, HOUR_END = 22;   // faixa das vistas semana/dia
 
 const WEEKDAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -765,6 +814,8 @@ const capitalize = s => s.charAt(0).toUpperCase() + s.slice(1);
 const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const slug = s => norm(s).replace(/[^a-z0-9]+/g, '').slice(0, 20) || 'pessoa';
 const safeUrl = u => /^https?:\/\/\S+$/i.test(String(u || '').trim()) ? String(u).trim() : '';
+// cor entra em atributo style: só hexadecimal, senão daria pra escapar do atributo
+const safeCor = c => /^#[0-9a-f]{3,8}$/i.test(String(c || '').trim()) ? String(c).trim() : '';
 const dayOfYear = d => Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 864e5);
 const typeOf = ev => EVENT_TYPES[ev.type] || EVENT_TYPES.outro;
 const isHoliday = s => HOLIDAYS[s] || '';
@@ -1445,6 +1496,17 @@ function marcadorQuadro(agora) {
   });
   marcadorRaf = seMovendo ? requestAnimationFrame(marcadorQuadro) : 0;
 }
+/* Marcador da nota: uma pastinha. Ao passar o ponteiro pelo dia, ela levanta,
+ * a aba da frente inclina e achata, e a folha de dentro sobe e aparece — a
+ * mesma mecânica da pasta do reactbits.dev, reduzida ao tamanho de um canto de
+ * célula e disparada pelo hover do dia inteiro, que é o alvo fácil de acertar.
+ * A cor escolhida na nota pinta a pasta; sem cor, ela usa o cinza da interface. */
+function notaMarcador(nota) {
+  if (!nota) return '';
+  const cor = safeCor(nota.cor);
+  return `<span class="note-fold" ${cor ? `style="--nc:${cor}"` : ''} title="Sua nota: ${esc(nota.text)}">`
+       + `<i class="note-fold__paper"></i><i class="note-fold__front">${esc(nota.icon || '📝')}</i></span>`;
+}
 function renderMonth() {
   const y = ui.cursor.getFullYear(), m = ui.cursor.getMonth();
   const first = startOfWeek(new Date(y, m, 1)), last = new Date(y, m + 1, 0), t = todayYmd(), evs = visibleEvents();
@@ -1456,10 +1518,10 @@ function renderMonth() {
     const d = addDays(first, i), s = ymd(d), other = d.getMonth() !== m, hol = isHoliday(s);
     const day = eventsOn(s, evs), bds = birthdaysOn(s), offs = offOn(s), shown = day.slice(0, maxCards);
     // data-r/data-c: posição na grade, usada pela inclinação e pela onda dos cubos
-    const nota = minhaNota(s);
-    html += `<div class="cell ${other ? 'other' : ''} ${s === t ? 'today' : ''} ${hol ? 'hol' : ''}" data-act="open-day" data-date="${s}" data-r="${Math.floor(i / 7)}" data-c="${i % 7}">
+    const nota = minhaNota(s), notaCor = nota ? safeCor(nota.cor) : '';
+    html += `<div class="cell ${other ? 'other' : ''} ${s === t ? 'today' : ''} ${hol ? 'hol' : ''} ${notaCor ? 'com-nota' : ''}" ${notaCor ? `style="--nc:${notaCor}"` : ''} data-act="open-day" data-date="${s}" data-r="${Math.floor(i / 7)}" data-c="${i % 7}">
       <i class="cube-flash"></i>
-      <div class="daynum"><span class="n">${d.getDate()}</span>${hol ? `<span class="hol" title="${esc(hol)}">${esc(hol)}</span>` : ''}${nota ? `<span class="note-dot" title="Sua nota: ${esc(nota.text)}">${esc(nota.icon || '📝')}</span>` : ''}</div>
+      <div class="daynum"><span class="n">${d.getDate()}</span>${hol ? `<span class="hol" title="${esc(hol)}">${esc(hol)}</span>` : ''}${notaMarcador(nota)}</div>
       ${bds.length || offs.length ? `<div class="chips">${bds.map(k => `<span class="chip" title="Aniversário de ${esc(nameOf(k))}">🎂 ${esc(nameOf(k))}</span>`).join('')}${offs.map(f => `<span class="chip" style="${colorVars(f.who)}" title="${esc(nameOf(f.who))}: ${offLabel(f)}">${offLabel(f).split(' ')[0]} ${esc(nameOf(f.who))}</span>`).join('')}</div>` : ''}
       ${shown.map(evCard).join('')}
       ${day.length > maxCards ? `<div class="more">+${day.length - maxCards} mais</div>` : ''}
@@ -1478,7 +1540,7 @@ function renderTimeline(cols) {
   const head = `<div class="tl-head"><div></div>${days.map(s => { const d = parseYmd(s), hol = isHoliday(s); return `<div class="${s === t ? 'today' : ''}" data-act="open-day" data-date="${s}">${WEEKDAYS[d.getDay()]}<span class="dnum">${d.getDate()}</span>${hol ? `<span class="hol">${esc(hol)}</span>` : ''}</div>`; }).join('')}</div>`;
   const allday = `<div class="tl-allday"><div>dia todo</div>${days.map(s => {
     const items = eventsOn(s, evs).filter(ev => ev.allDay || !ev.start), offs = offOn(s), bds = birthdaysOn(s), nota = minhaNota(s);
-    return `<div data-act="open-day" data-date="${s}">${bds.map(k => `<span class="chip">🎂 ${esc(nameOf(k))}</span>`).join('')}${offs.map(f => `<span class="chip" style="${colorVars(f.who)}">${offLabel(f).split(' ')[0]} ${esc(nameOf(f.who))}</span>`).join('')}${nota ? `<span class="chip" title="Sua nota: ${esc(nota.text)}">${esc(nota.icon || '📝')} nota</span>` : ''}${items.map(evCard).join('')}</div>`;
+    return `<div data-act="open-day" data-date="${s}">${bds.map(k => `<span class="chip">🎂 ${esc(nameOf(k))}</span>`).join('')}${offs.map(f => `<span class="chip" style="${colorVars(f.who)}">${offLabel(f).split(' ')[0]} ${esc(nameOf(f.who))}</span>`).join('')}${nota ? `<span class="chip" ${safeCor(nota.cor) ? `style="--bg:${safeCor(nota.cor)};--fg:${inkFor(safeCor(nota.cor))}"` : ''} title="Sua nota: ${esc(nota.text)}">${esc(nota.icon || '📝')} nota</span>` : ''}${items.map(evCard).join('')}</div>`;
   }).join('')}</div>`;
   const hours = Array.from({ length: H + 1 }, (_, i) => `<div>${pad2(HOUR_START + i)}:00</div>`).join('');
   const now = new Date(), nowTop = ((now.getHours() * 60 + now.getMinutes()) - HOUR_START * 60) / 60;
@@ -2060,10 +2122,17 @@ ACT['set-folga'] = async el => {
 
 /* ---------- painel da EQUIPE (Ludmylla/Rosilene): nota do dia + pedir troca ---------- */
 function viewerDayPanel(s) {
-  const my = session.user, note = (state.notes[my] || {})[s] || { text: '', icon: '📝' };
+  const my = session.user, note = (state.notes[my] || {})[s] || { text: '', icon: '📝', cor: '' };
+  const cor = note.cor || '';
+  const naLista = NOTE_COLORS.some(c => c.cor && c.cor.toLowerCase() === cor.toLowerCase());
   return `<div class="section"><h3>${note.icon} Minha nota do dia</h3>
     <form data-submit="save-note" autocomplete="off">
       <div class="icon-pick mb">${NOTE_ICONS.map(i => `<button type="button" class="${note.icon === i ? 'on' : ''}" data-act="note-icon" data-icon="${i}">${i}</button>`).join('')}<input type="hidden" name="icon" value="${note.icon}"></div>
+      <label class="field"><span style="font-size:11px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.05em">Cor do dia no calendário</span></label>
+      <div class="color-pick mb">${NOTE_COLORS.map(c => `<button type="button" class="${(cor || '') === c.cor ? 'on' : ''} ${c.cor ? '' : 'nenhuma'}" style="${c.cor ? `--sw:${c.cor}` : ''}" data-act="note-color" data-cor="${c.cor}" title="${esc(c.nome)}"></button>`).join('')}
+        <label class="outra" title="Outra cor"><input type="color" value="${esc(cor || '#F2B01E')}" data-change="note-color-livre"><span>outra</span></label>
+        <input type="hidden" name="cor" value="${esc(cor)}"></div>
+      <div class="hint mb">${cor && !naLista ? 'Cor personalizada escolhida. ' : ''}O quadrado do dia fica marcado com essa cor, só para você.</div>
       <textarea name="text" maxlength="1000" placeholder="Lembrete pessoal, observação, o que quiser…">${esc(note.text)}</textarea>
       <div class="row mt"><button class="btn btn-primary" type="submit">Salvar nota</button>${note.text ? '<button type="button" class="btn" data-act="delete-note">Apagar</button>' : ''}</div>
     </form></div>
@@ -2074,11 +2143,22 @@ function viewerDayPanel(s) {
     <div class="hint">Você pode confirmar presença e comentar nos compromissos acima — é só clicar em um deles.</div>`;
 }
 ACT['note-icon'] = el => { const f = el.closest('form'); f.elements.icon.value = el.dataset.icon; $$('.icon-pick button', f).forEach(b => b.classList.toggle('on', b === el)); };
+ACT['note-color'] = el => {
+  const f = el.closest('form'); f.elements.cor.value = el.dataset.cor;
+  $$('.color-pick button', f).forEach(b => b.classList.toggle('on', b === el));
+};
+// cor livre: marca o campo e tira a seleção dos atalhos, senão ficariam dois "ativos"
+CHG['note-color-livre'] = el => {
+  const f = el.closest('form'); f.elements.cor.value = el.value;
+  $$('.color-pick button', f).forEach(b => b.classList.remove('on'));
+  el.closest('.outra').classList.add('on');
+};
 SUB['save-note'] = async form => {
   const m = getModal('day'); if (!m) return; const s = m.data.date, my = session.user;
   state.notes[my] = state.notes[my] || {};
   const text = form.elements.text.value.trim();
-  if (text) state.notes[my][s] = { text, icon: form.elements.icon.value, at: Date.now() }; else delete state.notes[my][s];
+  if (text) state.notes[my][s] = { text, icon: form.elements.icon.value, cor: form.elements.cor.value || '', at: Date.now() };
+  else delete state.notes[my][s];
   await save('notes', 'Nota salva ✓');
   const st = $('#dm-static', m.body); if (st) st.innerHTML = viewerDayPanel(s);
 };
