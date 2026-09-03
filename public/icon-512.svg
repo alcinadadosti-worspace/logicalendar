@@ -1,17 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#1A1438"/>
-  <g fill="#FBF8F1">
+  <rect width="512" height="512" rx="96" fill="#F2B01E"/>
+  <g fill="#23262B">
     <rect x="96" y="176" width="224" height="150" rx="14"/>
     <path d="M320 216h64q12 0 20 12l34 50q2 6 2 12v36H320z"/>
     <circle cx="160" cy="340" r="34"/>
     <circle cx="370" cy="340" r="34"/>
   </g>
-  <g fill="#1A1438">
+  <g fill="#F2B01E">
     <rect x="336" y="232" width="48" height="40" rx="6"/>
     <circle cx="160" cy="340" r="14"/>
     <circle cx="370" cy="340" r="14"/>
   </g>
-  <circle cx="200" cy="420" r="16" fill="#5B9BEF"/>
-  <circle cx="256" cy="420" r="16" fill="#F27DAD"/>
-  <circle cx="312" cy="420" r="16" fill="#5FCB6A"/>
+  <g stroke="#23262B" stroke-width="3">
+    <circle cx="200" cy="420" r="16" fill="#3E8FC4"/>
+    <circle cx="256" cy="420" r="16" fill="#BE8B21"/>
+    <circle cx="312" cy="420" r="16" fill="#4F8F52"/>
+  </g>
 </svg>

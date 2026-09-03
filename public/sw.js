@@ -3,7 +3,7 @@
  * o index.html é sempre buscado na rede primeiro (o Render serve com no-cache), com o
  * cache como fallback. Requisições do Firebase e do Open-Meteo passam direto — o app
  * já tem o próprio cache no localStorage e o Firestore tem a própria fila offline. */
-const CACHE = 'logistica-cal-v1';
+const CACHE = 'logistica-cal-v2';   // v2: paleta nova (logo e icones mudaram)
 const SHELL = [
   './', './index.html', './manifest.json', './icon-192.svg', './icon-512.svg', './logo.png',
   './fotos/alberto.jpg', './fotos/ludmylla.jpg', './fotos/rosilene.jpg'

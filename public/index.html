@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Calendário · Logística</title>
 <meta name="description" content="Calendário da equipe de Logística">
-<meta name="theme-color" content="#1A1438">
+<meta name="theme-color" content="#23262B">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="logo.png">
@@ -21,25 +21,29 @@ try { var t = localStorage.getItem('lg_theme'); if (t) document.documentElement.
 </script>
 <style>
 /* =====================================================================
-   TOKENS — neo-brutalismo suave: creme + tinta roxa, bordas 1.5px,
+   TOKENS — neo-brutalismo suave em chave logística: cinza de concreto,
+   tinta grafite (asfalto) e amarelo de carga como destaque. Bordas 1.5px,
    sombra sólida deslocada, cantos 6px, botões pílula.
    ===================================================================== */
 :root{
-  --paper:#FBF8F1; --paper-2:#F1ECDF; --card:#FFFFFF;
-  --ink:#1A1438; --ink-2:#4A4470; --muted:#7A7594;
-  --line:#1A1438; --accent:#5B9BEF; --danger:#D64545; --ok:#2E9E5B; --warn:#E9A23B;
-  --todos:#1A1438; --todos-ink:#FBF8F1;
+  --paper:#F3F3F0; --paper-2:#E4E4DF; --card:#FFFFFF;
+  --ink:#23262B; --ink-2:#4C525A; --muted:#7C838C;
+  --line:#23262B; --accent:#F2B01E; --danger:#C4553D; --ok:#3E8F5E; --warn:#E0A72E;
+  --todos:#23262B; --todos-ink:#F3F3F0;
   --shadow:2px 2px 0 var(--ink); --shadow-lg:4px 4px 0 var(--ink);
   --r:6px; --bw:1.5px; --border:var(--bw) solid var(--line);
   --font-ui:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
   --font-serif:'Fraunces','Georgia','Times New Roman',serif;
   --sidebar-w:300px; --hour-h:48px; --top-h:60px;
+  /* profundidade e inclinação dos cubos do mês */
+  --cube-d:16px; --cube-edge:#C6C6BC; --cube-edge-2:#ADADA3;
 }
 [data-theme="dark"]{
-  --paper:#15112A; --paper-2:#1D1838; --card:#241E44;
-  --ink:#F3EFE6; --ink-2:#D2CCE8; --muted:#A39DC2;
-  --line:#F3EFE6; --todos:#F3EFE6; --todos-ink:#15112A;
-  --danger:#F26D6D; --ok:#5BC98A; --warn:#F2B75A;
+  --paper:#191C20; --paper-2:#22262B; --card:#2A2F35;
+  --ink:#F0F0EA; --ink-2:#CBD0D6; --muted:#959BA4;
+  --line:#F0F0EA; --todos:#F0F0EA; --todos-ink:#191C20;
+  --accent:#F2B01E; --danger:#E07A63; --ok:#5FBE86; --warn:#E8B94A;
+  --cube-edge:#1C2025; --cube-edge-2:#12151A;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -61,7 +65,7 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em}
 .btn:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--ink)}
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 .btn-primary{background:var(--ink);color:var(--paper)}
-.btn-accent{background:var(--accent);color:#1A1438}
+.btn-accent{background:var(--accent);color:#23262B}
 .btn-danger{background:var(--danger);color:#fff}
 .btn-ghost{box-shadow:none;background:transparent}
 .btn-sm{padding:4px 10px;font-size:12px}
@@ -97,7 +101,7 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
 .toggle input:checked::after{left:19px}
 
 /* ---------- header ---------- */
-.demo-bar{background:var(--warn);color:#1A1438;text-align:center;font-size:12px;font-weight:700;padding:4px 10px}
+.demo-bar{background:var(--warn);color:#23262B;text-align:center;font-size:12px;font-weight:700;padding:4px 10px}
 .topbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--paper);border-bottom:var(--border);flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:10px;min-width:0}
 .brand img{width:38px;height:38px;border-radius:9px;border:var(--border);flex-shrink:0}
@@ -168,14 +172,38 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
 /* ---------- vista mês ---------- */
 .view-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
 .view-head h2{margin:0;font-size:20px}
-.month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:var(--border);border-radius:var(--r);overflow:hidden;background:var(--line);gap:var(--bw);box-shadow:var(--shadow-lg)}
-.dow{background:var(--paper-2);padding:6px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
-.cell{background:var(--card);min-height:120px;padding:4px;display:flex;flex-direction:column;gap:3px;cursor:pointer;position:relative;min-width:0}
+/* A grade do mês é a "cena 3D": cada dia é um caixote que se inclina perto do
+   ponteiro, como carga numa prateleira. O fundo da grade é o papel (não a
+   tinta): assim, quando um bloco se inclina, aparece o fundo limpo por trás em
+   vez de emendas escuras quebradas. Cada dia carrega a própria borda. */
+.month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:var(--border);border-radius:var(--r);background:var(--paper-2);gap:3px;padding:3px;box-shadow:var(--shadow-lg)}
+.month-grid.cubes-on{perspective:900px;perspective-origin:50% 45%}
+.dow{background:transparent;padding:6px 6px 8px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);border-bottom:2.5px solid var(--accent);margin-bottom:2px}
+.cell{background:var(--card);border:var(--border);border-radius:3px;min-height:120px;padding:4px;display:flex;flex-direction:column;gap:3px;cursor:pointer;position:relative;min-width:0}
 .cell:hover{background:var(--paper-2)}
+.cubes-on .cell{transform-style:preserve-3d;transition:transform .55s cubic-bezier(.16,1,.3,1)}
+.cubes-on .cell:hover{background:var(--card)}   /* a inclinação já é o retorno visual */
+.cubes-on .cell.other:hover{background:var(--paper)}
+.cubes-on .cell.tilting{transition-duration:.18s}
+/* Espessura do caixote. A inclinação é rotateX(-a) rotateY(+a): isso joga a
+   borda direita e a de baixo para trás, então as faces que ficam à vista são a
+   ESQUERDA e a de CIMA — é onde elas têm de estar. Tons mais escuros que a
+   frente, que é o que faz o olho ler volume. */
+.cubes-on .cell::after{content:'';position:absolute;top:calc(var(--bw) * -1);left:calc(var(--bw) * -1);width:var(--cube-d);height:calc(100% + var(--bw) * 2);background:var(--cube-edge);border:var(--border);border-right:0;transform-origin:0 50%;transform:rotateY(90deg);pointer-events:none}
+.cubes-on .cell::before{content:'';position:absolute;left:calc(var(--bw) * -1);top:calc(var(--bw) * -1);width:calc(100% + var(--bw) * 2);height:var(--cube-d);background:var(--cube-edge-2);border:var(--border);border-bottom:0;transform-origin:50% 0;transform:rotateX(-90deg);pointer-events:none}
+/* onda ao clicar: anéis de dias acendem em amarelo, saindo do dia clicado */
+.cube-flash{position:absolute;inset:0;background:var(--accent);opacity:0;pointer-events:none;border-radius:2px}
+.cell.ripple .cube-flash{animation:cubeFlash .5s ease-out var(--ripple-delay,0ms) both}
+@keyframes cubeFlash{0%{opacity:0}30%{opacity:.5}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  .cubes-on .cell{transition:none;transform:none!important}
+  .cell.ripple .cube-flash{animation:none}
+}
 .cell.other{background:var(--paper);color:var(--muted)}
 .cell.other .ev{opacity:.7}
 .cell.hol .daynum .n{color:var(--danger)}
-.cell.today .daynum .n{background:var(--ink);color:var(--paper)}
+.cell.today{border-color:var(--accent);border-width:2.5px}
+.cell.today .daynum .n{background:var(--accent);color:#23262B}
 .daynum{display:flex;align-items:center;gap:4px;font-weight:700;font-size:13px;min-width:0}
 .daynum .n{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0}
 .daynum .hol{font-size:10px;color:var(--danger);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
@@ -197,10 +225,10 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
 .tl-head{border-bottom:var(--border);background:var(--paper-2)}
 .tl-head>div{padding:6px 4px;text-align:center;font-size:11px;font-weight:700;border-left:1px solid var(--ink);text-transform:uppercase;letter-spacing:.04em;cursor:pointer;min-width:0}
 .tl-head>div:first-child{border-left:0;cursor:default}
-.tl-head>div.today{background:var(--ink);color:var(--paper)}
+.tl-head>div.today{background:var(--accent);color:#23262B}
 .tl-head .dnum{font-family:var(--font-serif);font-size:18px;display:block;text-transform:none;letter-spacing:0}
 .tl-head .hol{display:block;font-size:9px;color:var(--danger);text-transform:none;letter-spacing:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tl-head>div.today .hol{color:var(--paper)}
+.tl-head>div.today .hol{color:#23262B}
 .tl-allday{border-bottom:var(--border);min-height:34px}
 .tl-allday>div{padding:3px;border-left:1px solid var(--ink);display:flex;flex-direction:column;gap:2px;min-width:0}
 .tl-allday>div:first-child{border-left:0;font-size:10px;color:var(--muted);align-items:center;justify-content:center;text-transform:uppercase;font-weight:700}
@@ -208,7 +236,7 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
 .tl-hours{display:flex;flex-direction:column}
 .tl-hours div{height:var(--hour-h);font-size:11px;color:var(--muted);text-align:right;padding:2px 6px 0 0;font-variant-numeric:tabular-nums}
 .tl-col{position:relative;border-left:1px solid var(--ink);background-image:linear-gradient(to bottom,var(--paper-2) 1px,transparent 1px);background-size:100% var(--hour-h);cursor:pointer;min-width:0}
-.tl-col.today{background-color:rgba(91,155,239,.08)}
+.tl-col.today{background-color:rgba(242,176,30,.10)}
 .tl-ev{position:absolute;border:1px solid var(--ink);border-radius:4px;padding:3px 6px;font-size:11px;overflow:hidden;background:var(--bg,var(--card));color:var(--fg,var(--ink));box-shadow:1px 1px 0 var(--ink);cursor:pointer;line-height:1.25;min-width:0}
 .tl-ev:hover{z-index:3;box-shadow:2px 2px 0 var(--ink)}
 .tl-ev .t{font-weight:700;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -218,7 +246,7 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
 .day-extra{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 
 /* ---------- modais ---------- */
-.modal-backdrop{position:fixed;inset:0;background:rgba(26,20,56,.5);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow-y:auto}
+.modal-backdrop{position:fixed;inset:0;background:rgba(35,38,43,.55);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow-y:auto}
 .modal{background:var(--paper);border:var(--border);border-radius:8px;box-shadow:var(--shadow-lg);width:100%;max-width:720px;margin:auto 0;animation:pop .12s ease-out}
 .modal.wide{max-width:980px}
 .modal.narrow{max-width:460px}
@@ -260,7 +288,7 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
 .rsvp-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .comment{padding:8px 10px;border:1px solid var(--ink);border-radius:var(--r);background:var(--card);margin-bottom:6px;font-size:13px}
 .comment .meta{font-size:11px;color:var(--muted);margin-bottom:2px;display:flex;align-items:center;gap:6px}
-.mention{background:var(--accent);color:#1A1438;padding:0 3px;border-radius:3px;font-weight:600}
+.mention{background:var(--accent);color:#23262B;padding:0 3px;border-radius:3px;font-weight:600}
 .ev-meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;margin:8px 0}
 .ev-meta span{display:inline-flex;align-items:center;gap:4px}
 .ev-desc{white-space:pre-wrap;font-size:13px;line-height:1.5}
@@ -274,7 +302,7 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
 .msg-thread{display:flex;flex-direction:column;border:var(--border);border-radius:var(--r);background:var(--card);min-height:380px}
 .msg-scroll{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:6px;max-height:380px}
 .bubble{max-width:82%;padding:6px 10px;border:1px solid var(--ink);border-radius:10px;font-size:13px;background:var(--paper-2);align-self:flex-start;word-break:break-word}
-.bubble.me{align-self:flex-end;background:var(--accent);color:#1A1438}
+.bubble.me{align-self:flex-end;background:var(--accent);color:#23262B}
 .bubble .meta{font-size:10px;opacity:.7;margin-top:2px}
 .msg-input{display:flex;gap:6px;padding:8px;border-top:var(--border)}
 .bar-row{display:grid;grid-template-columns:110px 1fr 36px;align-items:center;gap:8px;margin-bottom:6px;font-size:13px}
@@ -350,7 +378,7 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
   .layout{grid-template-columns:1fr}
   .sidebar{position:fixed;top:0;left:0;bottom:0;width:min(330px,88vw);z-index:150;transform:translateX(-105%);transition:transform .2s;max-height:none;box-shadow:var(--shadow-lg);padding-top:16px}
   .sidebar.open{transform:none}
-  .drawer-backdrop.show{display:block;position:fixed;inset:0;background:rgba(26,20,56,.45);z-index:140}
+  .drawer-backdrop.show{display:block;position:fixed;inset:0;background:rgba(35,38,43,.5);z-index:140}
   .banner{grid-template-columns:1fr;padding:8px 10px}
   .topbar{padding:8px 10px;gap:8px}
   .month-title{font-size:20px}
@@ -383,6 +411,9 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
   .layout{display:block}
   .content{padding:0}
   .month-grid,.tl,.ev,.tl-ev{box-shadow:none}
+  .cell{transform:none!important}
+  .cubes-on .cell::before,.cubes-on .cell::after,.cube-flash{display:none}
+  .month-grid.cubes-on{perspective:none}
   body{background:#fff;color:#000}
   .cell{min-height:96px;break-inside:avoid}
   .tl-body{max-height:none;overflow:visible}
@@ -530,9 +561,9 @@ const DEMO = /COLE_AQUI/.test(FIREBASE_CONFIG.apiKey) || new URLSearchParams(loc
  * (collab:'ludmylla'), nunca pelo nome — por isso a chave nunca muda.
  * ===================================================================== */
 const SEED_EQUIPE = {
-  alberto:  { nome:'Alberto',  cor:'#5B9BEF', foto:'fotos/alberto.jpg',  cidade:'Penedo', email:'alberto@logistica.cal',  ativo:true, role:'admin'  },
-  ludmylla: { nome:'Ludmylla', cor:'#F27DAD', foto:'fotos/ludmylla.jpg', cidade:'Penedo', email:'ludmylla@logistica.cal', ativo:true, role:'viewer' },
-  rosilene: { nome:'Rosilene', cor:'#5FCB6A', foto:'fotos/rosilene.jpg', cidade:'Penedo', email:'rosilene@logistica.cal', ativo:true, role:'viewer' }
+  alberto:  { nome:'Alberto',  cor:'#3E8FC4', foto:'fotos/alberto.jpg',  cidade:'Penedo', email:'alberto@logistica.cal',  ativo:true, role:'admin'  },
+  ludmylla: { nome:'Ludmylla', cor:'#BE8B21', foto:'fotos/ludmylla.jpg', cidade:'Penedo', email:'ludmylla@logistica.cal', ativo:true, role:'viewer' },
+  rosilene: { nome:'Rosilene', cor:'#4F8F52', foto:'fotos/rosilene.jpg', cidade:'Penedo', email:'rosilene@logistica.cal', ativo:true, role:'viewer' }
 };
 
 /* Cidades da operação, todas em Alagoas. Os nomes aqui são os que aparecem na
@@ -749,7 +780,7 @@ function luminance(hex) {
 }
 function contrastRatio(a, b) { const la = luminance(a), lb = luminance(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); }
 // escolhe entre a tinta roxa e o creme: o que der mais contraste sobre a cor da pessoa
-const inkFor = hex => contrastRatio(hex, '#1A1438') >= contrastRatio(hex, '#FBF8F1') ? '#1A1438' : '#FBF8F1';
+const inkFor = hex => contrastRatio(hex, '#23262B') >= contrastRatio(hex, '#F3F3F0') ? '#23262B' : '#F3F3F0';
 
 async function sha256(text) {
   if (!(window.crypto && crypto.subtle)) throw new Error('Este navegador não suporta SHA-256 (precisa de HTTPS).');
@@ -780,6 +811,7 @@ const ui = {
   view: 'month', cursor: new Date(), onlyMine: false, search: '',
   theme: document.documentElement.getAttribute('data-theme') || 'light',
   festivo: lsGet('lg_festivo', '1') === '1',
+  cubes: lsGet('lg_cubes', '1') === '1',   // blocos 3D na grade do mês
   weekStart: Number(lsGet('lg_weekStart', '0')) || 0,
   ready: false, online: navigator.onLine, firstSnapshot: true,
   geo: null,          // { lat, lon, name, admin } quando a pessoa autoriza a localização
@@ -1110,7 +1142,7 @@ function avatarSvg(key) {
 function avatarImg(key, cls = 'avatar') { return `<img class="${cls}" src="${esc(photoOf(key))}" alt="" title="${esc(nameOf(key))}">`; }
 function colorVars(key) {
   if (key === 'todos') return '--bg:var(--todos);--fg:var(--todos-ink)';
-  return `--bg:var(--c-${key},#BBBBBB);--fg:var(--c-${key}-ink,#1A1438)`;
+  return `--bg:var(--c-${key},#BBBBBB);--fg:var(--c-${key}-ink,#23262B)`;
 }
 function personChip(key) {
   return `<span class="person-chip ${key === 'todos' ? 'todos' : ''}" style="${colorVars(key)}">${key === 'todos' ? '★' : avatarImg(key, 'avatar xs')} ${esc(nameOf(key))}</span>`;
@@ -1268,18 +1300,83 @@ function renderView() {
   const now = $('.tl-now', c), body = $('.tl-body', c);
   if (now && body) body.scrollTop = Math.max(0, now.offsetTop - 140);
   else if (body) body.scrollTop = 2 * 48; // começa às 8h
+  if (ui.view === 'month') ligarCubos($('.month-grid', c));
+}
+
+/* =====================================================================
+ * 11b. CUBOS DO MÊS — adaptação do efeito Cubes do ReactBits (reactbits.dev)
+ * para JS puro: a grade recebe perspectiva, cada dia vira um bloco com faces
+ * laterais e se inclina conforme a distância até o ponteiro. Sem GSAP: a
+ * volta ao lugar é uma transição CSS, e só as células dentro do raio recebem
+ * transform, então o custo por quadro é baixo.
+ * Ângulo bem menor que o do original (45°), senão o texto do dia fica ilegível.
+ * ===================================================================== */
+const CUBOS = { maxAngle: 17, radius: 2.3, ringDelay: 55 };
+const semMovimento = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const cubesAtivos = () => ui.cubes && !semMovimento();
+
+let cubeRaf = 0, cubeGrid = null;
+function ligarCubos(grid) {
+  cubeGrid = grid;
+  if (!grid || !cubesAtivos() || grid.dataset.cubes) return;
+  grid.dataset.cubes = '1';
+  grid.addEventListener('pointermove', e => {
+    if (e.pointerType === 'touch') return;   // no celular o dedo cobre a célula; inclinar atrapalha
+    if (cubeRaf) cancelAnimationFrame(cubeRaf);
+    const rect = grid.getBoundingClientRect();
+    cubeRaf = requestAnimationFrame(() => inclinarCubos(grid, e.clientX - rect.left, e.clientY - rect.top, rect));
+  });
+  grid.addEventListener('pointerleave', () => soltarCubos(grid));
+  grid.addEventListener('click', e => {
+    const cell = e.target.closest('.cell'); if (!cell) return;
+    ondaCubos(grid, +cell.dataset.r, +cell.dataset.c);
+  });
+}
+function inclinarCubos(grid, x, y, rect) {
+  const cells = $$('.cell', grid); if (!cells.length) return;
+  const linhas = Math.ceil(cells.length / 7);
+  const larg = rect.width / 7, alt = (rect.height - (grid.firstElementChild ? grid.firstElementChild.offsetHeight : 0)) / linhas;
+  const colC = x / larg, rowC = (y - (grid.firstElementChild ? grid.firstElementChild.offsetHeight : 0)) / alt;
+  cells.forEach(cell => {
+    const dist = Math.hypot(+cell.dataset.r + 0.5 - rowC, +cell.dataset.c + 0.5 - colC);
+    if (dist <= CUBOS.radius) {
+      const pct = 1 - dist / CUBOS.radius, a = pct * CUBOS.maxAngle;
+      cell.classList.add('tilting');
+      cell.style.transform = `rotateX(${-a.toFixed(2)}deg) rotateY(${a.toFixed(2)}deg)`;
+      cell.style.zIndex = String(2 + Math.round(pct * 8));
+    } else if (cell.style.transform) {
+      cell.classList.remove('tilting'); cell.style.transform = ''; cell.style.zIndex = '';
+    }
+  });
+}
+function soltarCubos(grid) {
+  if (cubeRaf) { cancelAnimationFrame(cubeRaf); cubeRaf = 0; }
+  $$('.cell', grid).forEach(cell => { cell.classList.remove('tilting'); cell.style.transform = ''; cell.style.zIndex = ''; });
+}
+// onda: os dias acendem em anéis a partir do dia clicado
+function ondaCubos(grid, rowHit, colHit) {
+  if (!cubesAtivos()) return;
+  $$('.cell', grid).forEach(cell => {
+    const anel = Math.round(Math.hypot(+cell.dataset.r - rowHit, +cell.dataset.c - colHit));
+    cell.style.setProperty('--ripple-delay', (anel * CUBOS.ringDelay) + 'ms');
+    cell.classList.remove('ripple'); void cell.offsetWidth;   // reinicia a animação
+    cell.classList.add('ripple');
+    setTimeout(() => cell.classList.remove('ripple'), anel * CUBOS.ringDelay + 600);
+  });
 }
 function renderMonth() {
   const y = ui.cursor.getFullYear(), m = ui.cursor.getMonth();
   const first = startOfWeek(new Date(y, m, 1)), last = new Date(y, m + 1, 0), t = todayYmd(), evs = visibleEvents();
   const totalDays = Math.ceil((Math.round((last - first) / 864e5) + 1) / 7) * 7;
-  let html = '<div class="month-grid">';
+  let html = `<div class="month-grid ${cubesAtivos() ? 'cubes-on' : ''}">`;
   for (let i = 0; i < 7; i++) html += `<div class="dow">${WEEKDAYS[(ui.weekStart + i) % 7]}</div>`;
   const maxCards = 4;
   for (let i = 0; i < totalDays; i++) {
     const d = addDays(first, i), s = ymd(d), other = d.getMonth() !== m, hol = isHoliday(s);
     const day = eventsOn(s, evs), bds = birthdaysOn(s), offs = offOn(s), shown = day.slice(0, maxCards);
-    html += `<div class="cell ${other ? 'other' : ''} ${s === t ? 'today' : ''} ${hol ? 'hol' : ''}" data-act="open-day" data-date="${s}">
+    // data-r/data-c: posição na grade, usada pela inclinação e pela onda dos cubos
+    html += `<div class="cell ${other ? 'other' : ''} ${s === t ? 'today' : ''} ${hol ? 'hol' : ''}" data-act="open-day" data-date="${s}" data-r="${Math.floor(i / 7)}" data-c="${i % 7}">
+      <i class="cube-flash"></i>
       <div class="daynum"><span class="n">${d.getDate()}</span>${hol ? `<span class="hol" title="${esc(hol)}">${esc(hol)}</span>` : ''}</div>
       ${bds.length || offs.length ? `<div class="chips">${bds.map(k => `<span class="chip" title="Aniversário de ${esc(nameOf(k))}">🎂 ${esc(nameOf(k))}</span>`).join('')}${offs.map(f => `<span class="chip" style="${colorVars(f.who)}" title="${esc(nameOf(f.who))}: ${offLabel(f)}">${offLabel(f).split(' ')[0]} ${esc(nameOf(f.who))}</span>`).join('')}</div>` : ''}
       ${shown.map(evCard).join('')}
@@ -1599,7 +1696,7 @@ function eventFormHtml(s) {
     <div class="row mb">
       <label class="check"><input type="checkbox" name="pinned"> 📌 Fixar no topo</label>
       <label class="check"><input type="checkbox" name="private"> 🔒 Privado (só gestor e envolvidos)</label>
-      <label class="check"><input type="checkbox" name="useColor"> 🎨 Cor própria <input type="color" name="color" value="#F5B942"></label>
+      <label class="check"><input type="checkbox" name="useColor"> 🎨 Cor própria <input type="color" name="color" value="#F2B01E"></label>
     </div>
     <div class="row"><button class="btn btn-primary" type="submit" id="ev-submit">Salvar evento</button><button type="button" class="btn" data-act="cancel-edit" id="ev-cancel" hidden>Cancelar edição</button></div>
   </form>`;
@@ -2217,7 +2314,7 @@ function paintInsights(body) {
   body.innerHTML = `<div class="stat-tiles"><div class="tile"><b>${evs.length}</b><span>compromissos</span></div><div class="tile"><b>${tasks.length ? Math.round(done / tasks.length * 100) : 0}%</b><span>tarefas feitas (${done}/${tasks.length})</span></div><div class="tile"><b>${meetings}</b><span>reuniões</span></div><div class="tile"><b>${offDays}</b><span>folgas / férias</span></div></div>
     <div class="section"><h3>👥 Compromissos por pessoa</h3>${perPerson.map(([k, n]) => `<div class="bar-row"><span class="lbl">${avatarImg(k, 'avatar xs')} ${esc(nameOf(k))}</span><div class="bar" title="${esc(nameOf(k))}: ${n}"><i class="${n ? '' : 'zero'}" style="width:${Math.round(n / maxP * 100)}%;--bg:var(--c-${k})"></i></div><span class="n">${n}</span></div>`).join('')}</div>
     <div class="section"><h3>📦 Distribuição por tipo</h3>${perType.length ? perType.map(([k, t, n]) => `<div class="bar-row"><span class="lbl">${t.ico} ${t.label}</span><div class="bar" title="${t.label}: ${n}"><i style="width:${Math.round(n / maxT * 100)}%"></i></div><span class="n">${n}</span></div>`).join('') : '<div class="empty">Sem eventos neste mês.</div>'}</div>
-    <div class="section"><h3>🔥 Dia da semana mais ocupado</h3><div class="heat">${perDow.map((n, i) => { const a = n / maxD; return `<div style="background:rgba(91,155,239,${(0.1 + a * 0.8).toFixed(2)});${a > 0.55 ? 'color:#1A1438' : ''}" title="${WEEKDAYS_LONG[i]}: ${n}">${WEEKDAYS[i]}<b>${n}</b></div>`; }).join('')}</div></div>`;
+    <div class="section"><h3>🔥 Dia da semana mais ocupado</h3><div class="heat">${perDow.map((n, i) => { const a = n / maxD; return `<div style="background:rgba(242,176,30,${(0.1 + a * 0.8).toFixed(2)});${a > 0.55 ? 'color:#23262B' : ''}" title="${WEEKDAYS_LONG[i]}: ${n}">${WEEKDAYS[i]}<b>${n}</b></div>`; }).join('')}</div></div>`;
 }
 
 /* ---------- histórico e status da equipe ---------- */
@@ -2252,7 +2349,7 @@ function paintTeam(body) {
         <div class="row"><button class="btn btn-sm btn-primary" type="submit">Salvar</button><span class="muted small">${esc(p.email)}</span></div>
       </div></form>`).join('')
     + `<form class="section" data-submit="add-person" autocomplete="off"><h3>➕ Adicionar pessoa</h3>
-      <div class="grid3"><div class="field"><label>Nome</label><input class="input" name="nome" required maxlength="40"></div><div class="field"><label>Cor</label><input type="color" name="cor" value="#F5B942"></div><div class="field"><label>Cidade</label><input class="input" name="cidade" maxlength="60"></div></div>
+      <div class="grid3"><div class="field"><label>Nome</label><input class="input" name="nome" required maxlength="40"></div><div class="field"><label>Cor</label><input type="color" name="cor" value="#F2B01E"></div><div class="field"><label>Cidade</label><input class="input" name="cidade" maxlength="60"></div></div>
       <div class="grid3"><div class="field"><label>PIN (4 dígitos)</label><input class="input" name="pin" inputmode="numeric" maxlength="4" ${DEMO ? '' : 'required'}></div><div class="field"><label>Papel</label><select name="role"><option value="viewer">equipe</option><option value="admin">gestor</option></select></div></div>
       <div class="hint mb">${DEMO ? 'No modo demonstração a pessoa entra sem PIN.' : 'Cria a conta no Firebase Auth e a entrada no pinMap na hora. A pessoa já consegue entrar com esse PIN.'}</div>
       <button class="btn btn-primary" type="submit">Adicionar</button></form>
@@ -2305,7 +2402,7 @@ SUB['add-person'] = async form => {
  * ===================================================================== */
 ACT.prefs = () => openModal({ id: 'prefs', title: '⚙️ Preferências', narrow: true, live: false, paint: body => {
   const perm = 'Notification' in window ? Notification.permission : 'unsupported';
-  body.innerHTML = `<div class="section"><h3>Aparência</h3><label class="toggle mb"><input type="checkbox" data-change="pref-theme" ${ui.theme === 'dark' ? 'checked' : ''}> Tema escuro</label><br><label class="toggle mb"><input type="checkbox" data-change="pref-festivo" ${ui.festivo ? 'checked' : ''}> Modo festivo (flocos e confetes em datas especiais)</label><div class="field mt"><label>Semana começa em</label><select data-change="pref-weekstart"><option value="0" ${ui.weekStart === 0 ? 'selected' : ''}>Domingo</option><option value="1" ${ui.weekStart === 1 ? 'selected' : ''}>Segunda</option></select></div><div class="hint">Estas preferências são deste aparelho e não sincronizam.</div></div>
+  body.innerHTML = `<div class="section"><h3>Aparência</h3><label class="toggle mb"><input type="checkbox" data-change="pref-theme" ${ui.theme === 'dark' ? 'checked' : ''}> Tema escuro</label><br><label class="toggle mb"><input type="checkbox" data-change="pref-festivo" ${ui.festivo ? 'checked' : ''}> Modo festivo (flocos e confetes em datas especiais)</label><br><label class="toggle mb"><input type="checkbox" data-change="pref-cubes" ${ui.cubes ? 'checked' : ''}> Blocos 3D no calendário (os dias se inclinam perto do ponteiro)</label><div class="field mt"><label>Semana começa em</label><select data-change="pref-weekstart"><option value="0" ${ui.weekStart === 0 ? 'selected' : ''}>Domingo</option><option value="1" ${ui.weekStart === 1 ? 'selected' : ''}>Segunda</option></select></div><div class="hint">Estas preferências são deste aparelho e não sincronizam.</div></div>
     <div class="section"><h3>Notificações do navegador</h3><div class="small mb">Status: <b>${{ granted: 'permitidas ✓', denied: 'bloqueadas no navegador', default: 'ainda não pedidas', unsupported: 'não suportadas' }[perm]}</b></div>${perm === 'default' ? '<button class="btn btn-sm" data-act="notif-ask">Permitir notificações</button>' : ''}${perm === 'granted' ? '<button class="btn btn-sm" data-act="notif-test">Testar</button>' : ''}</div>
     <div class="section"><h3>Localização</h3>
       <div class="small mb">${ui.geo
@@ -2321,6 +2418,7 @@ ACT.prefs = () => openModal({ id: 'prefs', title: '⚙️ Preferências', narrow
     <div class="section"><h3>Sobre</h3><div class="small">Calendário Logística v${APP_VERSION} · ${DEMO ? 'modo demonstração' : 'projeto ' + esc(FIREBASE_CONFIG.projectId)}</div><button class="btn btn-xs mt" data-act="clear-cache">Limpar cache local</button></div>`;
 } });
 CHG['pref-theme'] = el => { ui.theme = el.checked ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', ui.theme); lsSet('lg_theme', ui.theme); renderHeader(); };
+CHG['pref-cubes'] = el => { ui.cubes = el.checked; lsSet('lg_cubes', el.checked ? '1' : '0'); renderView(); };
 CHG['pref-festivo'] = el => { ui.festivo = el.checked; lsSet('lg_festivo', el.checked ? '1' : '0'); if (el.checked) maybeCelebrate(true); else stopFx(); };
 CHG['pref-weekstart'] = el => { ui.weekStart = Number(el.value); lsSet('lg_weekStart', el.value); render(); };
 ACT['notif-ask'] = () => { Notification.requestPermission().then(() => { const m = getModal('prefs'); if (m) m.paint(m.body, m); }); };
@@ -2494,8 +2592,8 @@ function startFx(kind, seconds = 14) {
   const cv = $('#fx'); if (!cv) return; stopFx();
   cv.hidden = false; const g = cv.getContext('2d');
   const resize = () => { cv.width = innerWidth; cv.height = innerHeight; }; resize();
-  const colors = ['#5B9BEF', '#F27DAD', '#5FCB6A', '#F5B942', '#1A1438'];
-  const snowColor = ui.theme === 'dark' ? '#FFFFFF' : '#9EC5F0';
+  const colors = ['#3E8FC4', '#BE8B21', '#4F8F52', '#F2B01E', '#23262B'];
+  const snowColor = ui.theme === 'dark' ? '#FFFFFF' : '#9AA0A8';
   const ps = Array.from({ length: kind === 'snow' ? 70 : 110 }, () => ({
     x: Math.random() * cv.width, y: Math.random() * -cv.height,
     r: kind === 'snow' ? 2 + Math.random() * 3 : 5 + Math.random() * 5,
