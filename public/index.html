@@ -129,7 +129,12 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
 
 /* ---------- layout ---------- */
 .layout{display:grid;grid-template-columns:var(--sidebar-w) 1fr;align-items:start}
-.sidebar{border-right:var(--border);padding:14px;background:var(--paper);overflow-y:auto;position:sticky;top:var(--top-h);max-height:calc(100vh - var(--top-h))}
+/* Sticky sem teto de altura: gruda no topo enquanto rola, mas nunca esconde
+   conteudo atras de um limite invisivel. Quando o menu e mais alto que o mes
+   (equipe, proximos compromissos, resumo, mural de elogios somados), a pagina
+   toda fica mais alta e um scroll normal mostra tudo - sem barra escondida
+   dentro de uma coluna estreita que parecia "cortar" os botoes de baixo. */
+.sidebar{border-right:var(--border);padding:14px;background:var(--paper);position:sticky;top:var(--top-h)}
 .content{padding:14px 16px;min-width:0;overflow-x:clip}
 .hamb{display:none}
 .drawer-backdrop{display:none}
@@ -377,7 +382,7 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
 @media (max-width:900px){
   .hamb{display:inline-flex}
   .layout{grid-template-columns:1fr}
-  .sidebar{position:fixed;top:0;left:0;bottom:0;width:min(330px,88vw);z-index:150;transform:translateX(-105%);transition:transform .2s;max-height:none;box-shadow:var(--shadow-lg);padding-top:16px}
+  .sidebar{position:fixed;top:0;left:0;bottom:0;width:min(330px,88vw);z-index:150;transform:translateX(-105%);transition:transform .2s;overflow-y:auto;box-shadow:var(--shadow-lg);padding-top:16px}
   .sidebar.open{transform:none}
   .drawer-backdrop.show{display:block;position:fixed;inset:0;background:rgba(35,38,43,.5);z-index:140}
   .banner{grid-template-columns:1fr;padding:8px 10px}
