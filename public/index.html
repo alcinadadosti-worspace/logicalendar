@@ -225,6 +225,8 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
 .daynum{display:flex;align-items:center;gap:4px;font-weight:700;font-size:13px;min-width:0}
 .daynum .n{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0}
 .daynum .hol{font-size:10px;color:var(--danger);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+/* marca da nota pessoal no canto do dia: só quem escreveu enxerga a própria */
+.daynum .note-dot{margin-left:auto;font-size:13px;line-height:1;flex-shrink:0}
 .chips{display:flex;flex-wrap:wrap;gap:2px}
 .chip{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:1px 6px;border:1px solid var(--ink);border-radius:999px;background:var(--bg,var(--paper-2));color:var(--fg,var(--ink));white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .ev{display:flex;align-items:center;gap:4px;font-size:11px;padding:2px 5px;border:1px solid var(--ink);border-radius:4px;background:var(--bg,var(--card));color:var(--fg,var(--ink));cursor:pointer;overflow:hidden;white-space:nowrap;box-shadow:1px 1px 0 var(--ink);line-height:1.3;min-width:0}
@@ -1230,6 +1232,8 @@ function logHistory(action, detail) {
   save('history');
 }
 function dayStatusOf(key, dateStr) { const s = state.statuses[dateStr] && state.statuses[dateStr][key]; return s && DAY_STATUS[s] ? DAY_STATUS[s] : null; }
+// Nota pessoal: cada um só enxerga a própria, por isso nunca recebe outra chave
+function minhaNota(dateStr) { const my = session.user; return (my && state.notes[my] && state.notes[my][dateStr]) || null; }
 
 let rafId = 0;
 function scheduleRender() { if (rafId) return; rafId = requestAnimationFrame(() => { rafId = 0; render(); }); }
@@ -1452,9 +1456,10 @@ function renderMonth() {
     const d = addDays(first, i), s = ymd(d), other = d.getMonth() !== m, hol = isHoliday(s);
     const day = eventsOn(s, evs), bds = birthdaysOn(s), offs = offOn(s), shown = day.slice(0, maxCards);
     // data-r/data-c: posição na grade, usada pela inclinação e pela onda dos cubos
+    const nota = minhaNota(s);
     html += `<div class="cell ${other ? 'other' : ''} ${s === t ? 'today' : ''} ${hol ? 'hol' : ''}" data-act="open-day" data-date="${s}" data-r="${Math.floor(i / 7)}" data-c="${i % 7}">
       <i class="cube-flash"></i>
-      <div class="daynum"><span class="n">${d.getDate()}</span>${hol ? `<span class="hol" title="${esc(hol)}">${esc(hol)}</span>` : ''}</div>
+      <div class="daynum"><span class="n">${d.getDate()}</span>${hol ? `<span class="hol" title="${esc(hol)}">${esc(hol)}</span>` : ''}${nota ? `<span class="note-dot" title="Sua nota: ${esc(nota.text)}">${esc(nota.icon || '📝')}</span>` : ''}</div>
       ${bds.length || offs.length ? `<div class="chips">${bds.map(k => `<span class="chip" title="Aniversário de ${esc(nameOf(k))}">🎂 ${esc(nameOf(k))}</span>`).join('')}${offs.map(f => `<span class="chip" style="${colorVars(f.who)}" title="${esc(nameOf(f.who))}: ${offLabel(f)}">${offLabel(f).split(' ')[0]} ${esc(nameOf(f.who))}</span>`).join('')}</div>` : ''}
       ${shown.map(evCard).join('')}
       ${day.length > maxCards ? `<div class="more">+${day.length - maxCards} mais</div>` : ''}
@@ -1472,8 +1477,8 @@ function renderTimeline(cols) {
   const t = todayYmd(), evs = visibleEvents(), H = HOUR_END - HOUR_START;
   const head = `<div class="tl-head"><div></div>${days.map(s => { const d = parseYmd(s), hol = isHoliday(s); return `<div class="${s === t ? 'today' : ''}" data-act="open-day" data-date="${s}">${WEEKDAYS[d.getDay()]}<span class="dnum">${d.getDate()}</span>${hol ? `<span class="hol">${esc(hol)}</span>` : ''}</div>`; }).join('')}</div>`;
   const allday = `<div class="tl-allday"><div>dia todo</div>${days.map(s => {
-    const items = eventsOn(s, evs).filter(ev => ev.allDay || !ev.start), offs = offOn(s), bds = birthdaysOn(s);
-    return `<div data-act="open-day" data-date="${s}">${bds.map(k => `<span class="chip">🎂 ${esc(nameOf(k))}</span>`).join('')}${offs.map(f => `<span class="chip" style="${colorVars(f.who)}">${offLabel(f).split(' ')[0]} ${esc(nameOf(f.who))}</span>`).join('')}${items.map(evCard).join('')}</div>`;
+    const items = eventsOn(s, evs).filter(ev => ev.allDay || !ev.start), offs = offOn(s), bds = birthdaysOn(s), nota = minhaNota(s);
+    return `<div data-act="open-day" data-date="${s}">${bds.map(k => `<span class="chip">🎂 ${esc(nameOf(k))}</span>`).join('')}${offs.map(f => `<span class="chip" style="${colorVars(f.who)}">${offLabel(f).split(' ')[0]} ${esc(nameOf(f.who))}</span>`).join('')}${nota ? `<span class="chip" title="Sua nota: ${esc(nota.text)}">${esc(nota.icon || '📝')} nota</span>` : ''}${items.map(evCard).join('')}</div>`;
   }).join('')}</div>`;
   const hours = Array.from({ length: H + 1 }, (_, i) => `<div>${pad2(HOUR_START + i)}:00</div>`).join('');
   const now = new Date(), nowTop = ((now.getHours() * 60 + now.getMinutes()) - HOUR_START * 60) / 60;
