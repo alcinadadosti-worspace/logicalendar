@@ -130,7 +130,7 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
 /* ---------- layout ---------- */
 .layout{display:grid;grid-template-columns:var(--sidebar-w) 1fr;align-items:start}
 .sidebar{border-right:var(--border);padding:14px;background:var(--paper);overflow-y:auto;position:sticky;top:var(--top-h);max-height:calc(100vh - var(--top-h))}
-.content{padding:14px 16px;min-width:0}
+.content{padding:14px 16px;min-width:0;overflow-x:clip}
 .hamb{display:none}
 .drawer-backdrop{display:none}
 
@@ -222,6 +222,7 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
 /* ---------- linha do tempo (semana / dia) ---------- */
 .tl{border:var(--border);border-radius:var(--r);background:var(--card);box-shadow:var(--shadow-lg);overflow:hidden;--cols:7}
 .tl-head,.tl-allday,.tl-body{display:grid;grid-template-columns:56px repeat(var(--cols),minmax(0,1fr))}
+.tl-head,.tl-allday{padding-right:var(--sbw,0px)}
 .tl-head{border-bottom:var(--border);background:var(--paper-2)}
 .tl-head>div{padding:6px 4px;text-align:center;font-size:11px;font-weight:700;border-left:1px solid var(--ink);text-transform:uppercase;letter-spacing:.04em;cursor:pointer;min-width:0}
 .tl-head>div:first-child{border-left:0;cursor:default}
@@ -232,7 +233,7 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
 .tl-allday{border-bottom:var(--border);min-height:34px}
 .tl-allday>div{padding:3px;border-left:1px solid var(--ink);display:flex;flex-direction:column;gap:2px;min-width:0}
 .tl-allday>div:first-child{border-left:0;font-size:10px;color:var(--muted);align-items:center;justify-content:center;text-transform:uppercase;font-weight:700}
-.tl-body{max-height:calc(100vh - 300px);overflow:auto;position:relative}
+.tl-body{max-height:calc(100vh - 300px);overflow-y:auto;overflow-x:hidden;position:relative;scrollbar-gutter:stable}
 .tl-hours{display:flex;flex-direction:column}
 .tl-hours div{height:var(--hour-h);font-size:11px;color:var(--muted);text-align:right;padding:2px 6px 0 0;font-variant-numeric:tabular-nums}
 .tl-col{position:relative;border-left:1px solid var(--ink);background-image:linear-gradient(to bottom,var(--paper-2) 1px,transparent 1px);background-size:100% var(--hour-h);cursor:pointer;min-width:0}
@@ -1301,6 +1302,18 @@ function renderView() {
   if (now && body) body.scrollTop = Math.max(0, now.offsetTop - 140);
   else if (body) body.scrollTop = 2 * 48; // começa às 8h
   if (ui.view === 'month') ligarCubos($('.month-grid', c));
+  else alinharColunas($('.tl', c));
+}
+/* A linha do tempo rola por dentro. Onde a barra de rolagem ocupa espaço de
+ * verdade (Windows, Linux), ela come largura só do corpo, e as colunas de baixo
+ * ficavam mais estreitas que as do cabeçalho — a última aparecia amassada.
+ * Aqui a largura real da barra é medida e reservada também no cabeçalho, então
+ * as colunas batem em qualquer sistema. */
+function alinharColunas(tl) {
+  if (!tl) return;
+  const body = $('.tl-body', tl); if (!body) return;
+  const barra = body.offsetWidth - body.clientWidth;
+  tl.style.setProperty('--sbw', barra + 'px');
 }
 
 /* =====================================================================
@@ -2658,7 +2671,7 @@ function init() {
   setInterval(checkReminders, 30000);
   setInterval(() => { if (ui.view !== 'month' && !ui.modals.length) renderView(); }, 60000); // linha do "agora"
   const setTop = () => document.documentElement.style.setProperty('--top-h', ($('#topbar').offsetHeight + (DEMO ? $('#demo-bar').offsetHeight : 0)) + 'px');
-  setTop(); window.addEventListener('resize', () => { setTop(); if (innerWidth > 900) toggleDrawer(false); }); // drawer aberto não pode travar o scroll no desktop
+  setTop(); window.addEventListener('resize', () => { setTop(); if (innerWidth > 900) toggleDrawer(false); alinharColunas($('.tl')); }); // drawer aberto não pode travar o scroll no desktop
   document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) { const r = $('#search-results'); if (r) r.hidden = true; } });
   render();
   showLogin(); // onAuthStateChanged esconde se já houver sessão
