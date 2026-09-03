@@ -1775,7 +1775,7 @@ function paintDayLive(el, m) {
   const s = m.data.date, evs = eventsOn(s), offs = offOn(s);
   el.innerHTML = `<div class="section"><h3>📅 Compromissos do dia <span class="right muted">${evs.length}</span></h3>
     ${offs.length ? `<div class="row mb">${offs.map(f => `<span class="person-chip" style="${colorVars(f.who)}">${offLabel(f)} · ${esc(nameOf(f.who))}</span>`).join('')}</div>` : ''}
-    ${evs.length ? `<div class="list-ev">${evs.map(ev => `<div class="item" style="${eventStyle(ev)}" data-act="open-event" data-id="${ev.id}"><span>${ev.pinned ? '📌' : typeOf(ev).ico}</span><span class="t">${ev.private ? '🔒 ' : ''}${esc(ev.title)}</span><span class="hh">${ev.allDay || !ev.start ? 'dia todo' : ev.start + (ev.end ? '–' + ev.end : '')}</span><span class="small">${eventPeople(ev).map(nameOf).join(', ')}</span>${isAdmin() ? `<button class="btn btn-xs" data-act="edit-event" data-id="${ev.id}" title="Editar">✏️</button>` : ''}</div>`).join('')}</div>` : '<div class="empty">Nenhum compromisso neste dia.</div>'}
+    ${evs.length ? `<div class="list-ev">${evs.map(ev => `<div class="item" style="${eventStyle(ev)}" data-act="open-event" data-id="${ev.id}"><span>${ev.pinned ? '📌' : typeOf(ev).ico}</span><span class="t">${ev.private ? '🔒 ' : ''}${esc(ev.title)}</span><span class="hh">${ev.allDay || !ev.start ? 'dia todo' : ev.start + (ev.end ? '–' + ev.end : '')}</span><span class="small">${eventPeople(ev).map(nameOf).join(', ')}</span>${isAdmin() ? `<button class="btn btn-xs" data-act="edit-event" data-id="${ev.id}" title="Editar">✏️</button><button class="btn btn-xs btn-danger" data-act="delete-event" data-id="${ev.id}" title="Excluir">🗑️</button>` : ''}</div>`).join('')}</div>` : '<div class="empty">Nenhum compromisso neste dia.</div>'}
   </div>`;
 }
 function paintDayStatic(el, m) {
@@ -1842,7 +1842,9 @@ function eventFormHtml(s) {
       <label class="check"><input type="checkbox" name="private"> 🔒 Privado (só gestor e envolvidos)</label>
       <label class="check"><input type="checkbox" name="useColor"> 🎨 Cor própria <input type="color" name="color" value="#F2B01E"></label>
     </div>
-    <div class="row"><button class="btn btn-primary" type="submit" id="ev-submit">Salvar evento</button><button type="button" class="btn" data-act="cancel-edit" id="ev-cancel" hidden>Cancelar edição</button></div>
+    <div class="row"><button class="btn btn-primary" type="submit" id="ev-submit">Salvar evento</button><button type="button" class="btn" data-act="cancel-edit" id="ev-cancel" hidden>Cancelar edição</button>
+      <button type="button" class="btn btn-danger" data-act="delete-editing" id="ev-delete" hidden>🗑️ Excluir</button>
+      <button type="button" class="btn btn-danger" data-act="delete-editing" data-serie="1" id="ev-delete-serie" hidden>🗑️ Excluir série</button></div>
   </form>`;
 }
 function taskRowHtml(t = {}) {
@@ -1865,6 +1867,20 @@ ACT['role-chip'] = el => {
 CHG['recur-change'] = el => { const f = el.closest('form'); $('#recur-count-wrap', f).hidden = el.value === 'none'; $('#recur-custom', f).hidden = el.value !== 'custom'; };
 ACT.template = el => applyTemplate(el.dataset.tpl, el.closest('form'));
 ACT['cancel-edit'] = el => { const m = getModal('day'); if (m) m.data.editId = null; resetEventForm(el.closest('form')); };
+/* Excluir de dentro do formulário de edição. Antes só existia no cartão do
+ * evento, que abre por outro caminho: quem clicava no lápis procurando apagar
+ * não achava saída e acabava salvando de novo sem querer. */
+ACT['delete-editing'] = async el => {
+  const form = el.closest('form'), ev = findEvent(form.elements.editId.value); if (!ev) return;
+  const serie = !!(el.dataset.serie && ev.seriesId);
+  const ids = serie ? new Set(state.events.filter(e => e.seriesId === ev.seriesId).map(e => e.id)) : new Set([ev.id]);
+  if (!confirm(serie ? `Excluir toda a série "${ev.title}" (${ids.size} eventos)?` : `Excluir "${ev.title}"?`)) return;
+  purgeEventIds(ids);
+  const m = getModal('day'); if (m) m.data.editId = null;
+  resetEventForm(form);
+  await save('events', serie ? 'Série excluída' : 'Evento excluído');
+  logHistory('excluiu', serie ? `série "${ev.title}" (${ids.size} eventos)` : `evento "${ev.title}" de ${fmtDMY(ev.date)}`);
+};
 function applyTemplate(key, form) {
   const t = TEMPLATES[key]; if (!t) return; const E = form.elements;
   E.title.value = t.title; E.type.value = t.type; E.start.value = t.start; E.end.value = t.end; E.allDay.checked = false;
@@ -1878,6 +1894,7 @@ function resetEventForm(form) {
   E.editId.value = ''; if (m) E.date.value = m.data.date;
   $('#task-rows', form).innerHTML = taskRowHtml();
   $('#ev-submit', form).textContent = 'Salvar evento'; $('#ev-cancel', form).hidden = true;
+  $('#ev-delete', form).hidden = true; $('#ev-delete-serie', form).hidden = true;
   CHG['recur-change'](E.recur);
 }
 function expandRecurrence(date, recur, interval, unit, count) {
@@ -1946,6 +1963,8 @@ function fillFormForEdit(root, id, m) {
     const c = state.customColors[ev.id]; E.useColor.checked = !!c; if (c) E.color.value = c;
     $('#task-rows', form).innerHTML = (ev.tasks && ev.tasks.length ? ev.tasks : [{ who: eventOwner(ev) === 'todos' ? session.user : eventOwner(ev) }]).map(taskRowHtml).join('');
     $('#ev-submit', form).textContent = 'Atualizar evento'; $('#ev-cancel', form).hidden = false;
+    // quem abre a edição costuma estar procurando como apagar: o botão fica aqui também
+    $('#ev-delete', form).hidden = false; $('#ev-delete-serie', form).hidden = !ev.seriesId;
     setTimeout(() => form.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   } else if (tab === 'tarefa') {
     m.data.taskQueue = (ev.tasks || []).map(t => ({ id: t.id, who: t.who, text: t.text || t.role, priority: t.priority || 'media', done: !!t.done, doneAt: t.doneAt }));
