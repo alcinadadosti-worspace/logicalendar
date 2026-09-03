@@ -151,6 +151,19 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
 .role-tag{font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;padding:1px 6px;border:1px solid var(--ink);border-radius:999px;display:inline-block}
 .sb-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .sb-btns .btn{justify-content:center}
+
+/* Marcador de proximidade nos botões de ação do menu (adaptação do padrão
+   "linha que cresce perto do ponteiro" de navegação por lista, aqui aplicado
+   a uma grade 2x2 em vez de uma lista vertical): uma linha embaixo do botão
+   cresce e clareia conforme o ponteiro se aproxima. --fx (0 a 1) é escrito
+   pelo JS a cada quadro, suavizado por interpolação exponencial, então cor,
+   escala e opacidade se movem juntos sem depender de transição CSS.  */
+.sb-btns .btn{--fx:0;position:relative;overflow:hidden}
+.sb-btns .btn::after{content:'';position:absolute;left:12px;right:12px;bottom:5px;height:2px;border-radius:1px;background:var(--accent);transform-origin:left center;transform:scaleX(calc(.1 + var(--fx) * .9));opacity:calc(.3 + var(--fx) * .7);pointer-events:none}
+@supports (color:color-mix(in srgb,red,blue)){
+  .sb-btns .btn{border-color:color-mix(in srgb, var(--accent) calc(var(--fx) * 70%), var(--line))}
+}
+@media (prefers-reduced-motion:reduce){.sb-btns .btn::after{display:none}}
 .team-item{display:flex;align-items:center;gap:8px;padding:6px;border-radius:var(--r);cursor:pointer}
 .team-item:hover{background:var(--paper-2)}
 .team-item .nm{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1381,6 +1394,52 @@ function ondaCubos(grid, rowHit, colHit) {
     cell.classList.add('ripple');
     setTimeout(() => cell.classList.remove('ripple'), anel * CUBOS.ringDelay + 600);
   });
+}
+/* =====================================================================
+ * 11c. MARCADOR DE PROXIMIDADE NOS BOTÕES DO MENU — cada botão ganha um
+ * valor --fx (0 a 1) conforme a distância do ponteiro até o seu centro,
+ * suavizado quadro a quadro por interpolação exponencial (não por transição
+ * CSS, que ficaria dessincronizada entre vários botões se movendo juntos).
+ * O laço de animação só roda enquanto algum valor ainda está se movendo.
+ * ===================================================================== */
+const MARCADOR = { raio: 95, duracaoMs: 90 };
+let marcadorRaf = 0, marcadorUltimoMs = 0;
+const marcadorAlvo = new Map(), marcadorAtual = new Map();
+function ligarMarcadorMenu() {
+  const box = $('.sb-btns'); if (!box || box.dataset.marcador) return;
+  box.dataset.marcador = '1';
+  box.addEventListener('pointermove', e => {
+    if (e.pointerType === 'touch' || semMovimento()) return;
+    const rect = box.getBoundingClientRect();
+    const px = e.clientX - rect.left, py = e.clientY - rect.top;
+    $$('.btn', box).forEach(btn => {
+      const r = btn.getBoundingClientRect();
+      const cx = r.left - rect.left + r.width / 2, cy = r.top - rect.top + r.height / 2;
+      const dist = Math.hypot(px - cx, py - cy);
+      const p = Math.max(0, 1 - dist / MARCADOR.raio);
+      marcadorAlvo.set(btn, p * p * (3 - 2 * p));   // curva suave (smoothstep), sem picos bruscos
+    });
+    marcadorAnimar();
+  });
+  box.addEventListener('pointerleave', () => { $$('.btn', box).forEach(btn => marcadorAlvo.set(btn, 0)); marcadorAnimar(); });
+}
+function marcadorAnimar() {
+  if (marcadorRaf) return;
+  marcadorUltimoMs = performance.now();
+  marcadorRaf = requestAnimationFrame(marcadorQuadro);
+}
+function marcadorQuadro(agora) {
+  const dt = Math.min((agora - marcadorUltimoMs) / 1000, 0.05); marcadorUltimoMs = agora;
+  const k = 1 - Math.exp(-dt / (MARCADOR.duracaoMs / 1000));
+  let seMovendo = false;
+  marcadorAlvo.forEach((alvo, btn) => {
+    const cur = marcadorAtual.get(btn) || 0, prox = cur + (alvo - cur) * k;
+    const parado = Math.abs(alvo - prox) < 0.002, valor = parado ? alvo : prox;
+    marcadorAtual.set(btn, valor);
+    btn.style.setProperty('--fx', valor.toFixed(4));
+    if (!parado) seMovendo = true;
+  });
+  marcadorRaf = seMovendo ? requestAnimationFrame(marcadorQuadro) : 0;
 }
 function renderMonth() {
   const y = ui.cursor.getFullYear(), m = ui.cursor.getMonth();
@@ -2678,6 +2737,7 @@ function init() {
   const setTop = () => document.documentElement.style.setProperty('--top-h', ($('#topbar').offsetHeight + (DEMO ? $('#demo-bar').offsetHeight : 0)) + 'px');
   setTop(); window.addEventListener('resize', () => { setTop(); if (innerWidth > 900) toggleDrawer(false); alinharColunas($('.tl')); }); // drawer aberto não pode travar o scroll no desktop
   document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) { const r = $('#search-results'); if (r) r.hidden = true; } });
+  ligarMarcadorMenu();   // .sb-btns é HTML fixo, existe desde o primeiro render
   render();
   showLogin(); // onAuthStateChanged esconde se já houver sessão
   if (DEMO) { const last = lsGet('lg_lastUser', ''); if (last && getEquipe()[last]) startSession(last); }
