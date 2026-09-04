@@ -967,8 +967,8 @@ async function flushQueue() {
     try { await withTimeout(gravarDoc(key, q[key]), 8000); queueRemove(key); enviadas++; }
     catch (e) {
       /* Sem permissão nunca vai passar. Ficando na fila, essa chave barrava
-       * todas as outras (break) e o ciclo de 30 s tentava de novo pra sempre:
-       * a fila nunca esvaziava e nada mais subia. Descarta e segue. */
+       * todas as outras e o ciclo de 30 s tentava de novo pra sempre: a fila
+       * nunca esvaziava e nada mais subia. Descarta e segue. */
       if (e && e.code === 'permission-denied') { queueRemove(key); toast('Sem permissão para salvar. Entre de novo.', 'err'); continue; }
       break;   // ainda sem caminho: para aqui e tenta no próximo ciclo
     }
@@ -1000,10 +1000,36 @@ function loadFromCache() {
     try { const v = normalizeVal(k, JSON.parse(raw)); if (v !== undefined) state[k] = v; } catch (e) {}
   });
 }
+/* Estas chaves são um objeto único com a fatia de cada pessoa dentro. Gravar o
+ * objeto inteiro fazia a nota de quem salvasse primeiro sumir se o colega
+ * salvasse na mesma hora — e às 7h todo mundo escreve a nota do dia ao mesmo
+ * tempo. A transação relê o documento e troca só a fatia de quem está salvando,
+ * então duas pessoas escrevendo coisas diferentes não se atropelam mais. */
+const CHAVES_POR_PESSOA = ['notes', 'diary', 'blocks', 'priorities', 'userPriorities'];
+async function salvarMinhaFatia(key) {
+  const my = session.user;
+  const ref = db.collection(COLLECTION).doc(key);
+  await db.runTransaction(async tx => {
+    const snap = await tx.get(ref);
+    let atual = {};
+    if (snap.exists) {
+      try { const v = JSON.parse(snap.data().value); if (v && typeof v === 'object' && !Array.isArray(v)) atual = v; } catch (e) {}
+    }
+    const minha = state[key] ? state[key][my] : undefined;
+    if (minha === undefined) delete atual[my]; else atual[my] = minha;
+    tx.set(ref, { value: JSON.stringify(atual), updatedAt: Date.now(), updatedBy: my });
+    state[key] = atual;
+  });
+  cache.set(key, JSON.stringify(state[key]));
+}
 // grava uma chave: cache + Firestore; o render é agendado antes, pra UI responder na hora
 async function save(key, msg) {
   scheduleRender();
-  const ok = await window.storage.set(key, state[key]);
+  let ok;
+  if (db && session.user && CHAVES_POR_PESSOA.includes(key)) {
+    try { await withTimeout(salvarMinhaFatia(key), 8000); queueRemove(key); setOnline(true); ok = true; }
+    catch (e) { ok = await window.storage.set(key, state[key]); }   // transação falhou: caminho normal
+  } else ok = await window.storage.set(key, state[key]);
   if (msg) toast(ok ? msg : msg + ' (offline, na fila)', ok ? 'ok' : '');
   return ok;
 }
