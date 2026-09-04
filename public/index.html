@@ -833,7 +833,7 @@ function relTime(date) {
   const diff = date - Date.now(), min = Math.round(diff / 6e4);
   if (min < -1) return 'em andamento';
   if (min < 60) return `em ${Math.max(min, 1)} min`;
-  const h = Math.round(min / 60);
+  const h = Math.floor(min / 60);   // Math.round transformava 23h40 em 24 e caía no ramo errado
   if (h < 24 && ymd(date) === todayYmd()) return `em ${h} h`;
   if (ymd(date) === addDaysYmd(todayYmd(), 1)) return 'amanhã';
   const days = Math.round((parseYmd(ymd(date)) - parseYmd(todayYmd())) / 864e5);
@@ -864,10 +864,17 @@ async function sha256(text) {
 function richText(text) {
   return esc(text).replace(/(^|\s)@([\wÀ-ÿ]+)/g, (m, pre, name) => `${pre}<span class="mention">@${name}</span>`);
 }
+/* O nome da pessoa é texto livre e entrava cru numa expressão regular. Um nome
+ * como "Rosilene (turno 2" gerava um padrão inválido, e o erro estourava dentro
+ * do onSnapshot: a sincronia em tempo real morria em todos os aparelhos, sem
+ * aviso, até alguém recarregar. Aqui os caracteres especiais são neutralizados. */
+const escRe = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 function mentions(text, key) {
   const p = getEquipe()[key]; if (!p) return false;
-  const re = new RegExp(`@(${key}|${norm(p.nome)})\\b`, 'i');
-  return re.test(norm(text));
+  try {
+    const re = new RegExp(`@(${escRe(key)}|${escRe(norm(p.nome))})\\b`, 'i');
+    return re.test(norm(text));
+  } catch (e) { return false; }
 }
 
 /* =====================================================================
@@ -903,7 +910,11 @@ if (HAS_FIREBASE) {
   try { firebase.initializeApp(FIREBASE_CONFIG); db = firebase.firestore(); auth = firebase.auth(); }
   catch (e) { console.error('Firebase não inicializou', e); }
 }
-const cache = { get: k => lsGet('lg_data_' + k, null), set: (k, v) => lsSet('lg_data_' + k, v) };
+/* O modo demonstração guarda em outro lugar. Antes ele lia o mesmo cache da
+ * sessão real, então abrir a página com ?demo mostrava diário, mensagens e
+ * eventos privados de quem tinha usado o aparelho, sem pedir PIN. */
+const CACHE_PREFIX = DEMO ? 'lgdemo_data_' : 'lg_data_';
+const cache = { get: k => lsGet(CACHE_PREFIX + k, null), set: (k, v) => lsSet(CACHE_PREFIX + k, v) };
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
 
 window.storage = {
@@ -917,28 +928,53 @@ window.storage = {
   },
   async set(key, value) {
     const str = typeof value === 'string' ? value : JSON.stringify(value);
+    if (typeof str !== 'string') return false;   // JSON.stringify(undefined) não devolve string
     cache.set(key, str);
     if (!db) return true;
     try {
-      await withTimeout(db.collection(COLLECTION).doc(key).set({ value: str, updatedAt: Date.now(), updatedBy: session.user || null }), 8000);
+      await withTimeout(gravarDoc(key, str), 8000);
       queueRemove(key); setOnline(true); return true;
     } catch (e) {
       // permissão negada não é "offline": avisar e não enfileirar, senão fica tentando pra sempre
       if (e && e.code === 'permission-denied') { toast('Sem permissão para salvar. Entre de novo.', 'err'); return false; }
-      queueAdd(key); setOnline(false); return false;
+      queueAdd(key, str);
+      // tempo esgotado não prova que a rede caiu; só o navegador sabe disso
+      setOnline(navigator.onLine ? 'sync' : false);
+      return false;
     }
   }
 };
-function getQueue() { try { return JSON.parse(lsGet('offlineQueue', '[]')) || []; } catch (e) { return []; } }
-function queueAdd(key) { const q = getQueue(); if (!q.includes(key)) q.push(key); lsSet('offlineQueue', JSON.stringify(q)); }
-function queueRemove(key) { lsSet('offlineQueue', JSON.stringify(getQueue().filter(k => k !== key))); }
+const gravarDoc = (key, str) => db.collection(COLLECTION).doc(key).set({ value: str, updatedAt: Date.now(), updatedBy: session.user || null });
+
+/* Fila offline no formato { chave: json }. Guardar O VALOR, e não só a chave, é
+ * o que garante que a edição feita sem sinal seja a que sobe depois. Antes a
+ * fila reenviava state[chave]: se o primeiro snapshot já tivesse trazido o dado
+ * do servidor, ela regravava esse mesmo dado por cima e ainda avisava
+ * "sincronizado", com a alteração da pessoa perdida sem aviso. */
+function getQueue() {
+  try { const q = JSON.parse(lsGet('offlineQueue', '{}')); return (q && typeof q === 'object' && !Array.isArray(q)) ? q : {}; }
+  catch (e) { return {}; }
+}
+function queueAdd(key, str) { const q = getQueue(); q[key] = str; lsSet('offlineQueue', JSON.stringify(q)); }
+function queueRemove(key) { const q = getQueue(); delete q[key]; lsSet('offlineQueue', JSON.stringify(q)); }
 let flushing = false;
 async function flushQueue() {
-  const q = getQueue(); if (!q.length || flushing || !db || !session.user) return;
+  const q = getQueue(), chaves = Object.keys(q);
+  if (!chaves.length || flushing || !db || !session.user) return;
   flushing = true; setOnline('sync');
-  for (const key of q) await window.storage.set(key, state[key]);
+  let enviadas = 0;
+  for (const key of chaves) {
+    try { await withTimeout(gravarDoc(key, q[key]), 8000); queueRemove(key); enviadas++; }
+    catch (e) {
+      /* Sem permissão nunca vai passar. Ficando na fila, essa chave barrava
+       * todas as outras (break) e o ciclo de 30 s tentava de novo pra sempre:
+       * a fila nunca esvaziava e nada mais subia. Descarta e segue. */
+      if (e && e.code === 'permission-denied') { queueRemove(key); toast('Sem permissão para salvar. Entre de novo.', 'err'); continue; }
+      break;   // ainda sem caminho: para aqui e tenta no próximo ciclo
+    }
+  }
   flushing = false;
-  if (!getQueue().length) { setOnline(true); toast('Alterações offline sincronizadas ✓', 'ok'); }
+  if (!Object.keys(getQueue()).length) { setOnline(true); if (enviadas) toast('Alterações offline sincronizadas ✓', 'ok'); }
 }
 function setOnline(v) {
   const dot = $('#online-dot'); if (!dot) return;
@@ -949,13 +985,20 @@ function setOnline(v) {
 window.addEventListener('online', () => { setOnline(true); flushQueue(); });
 window.addEventListener('offline', () => setOnline(false));
 
+/* Devolve undefined quando o documento tem a forma errada (um JSON válido mas
+ * que não é a lista/objeto esperado). Antes trocava por um vazio, e a próxima
+ * gravação automática publicava esse vazio por cima do documento bom — apagando
+ * o dado dos três sem deixar rastro. Melhor ignorar e manter o que já havia. */
 function normalizeVal(key, val) {
   const def = DEFAULTS[key];
-  if (Array.isArray(def)) return Array.isArray(val) ? val : [];
-  return val && typeof val === 'object' && !Array.isArray(val) ? val : {};
+  if (Array.isArray(def)) return Array.isArray(val) ? val : undefined;
+  return val && typeof val === 'object' && !Array.isArray(val) ? val : undefined;
 }
 function loadFromCache() {
-  STATE_KEYS.forEach(k => { const raw = cache.get(k); if (raw == null) return; try { state[k] = normalizeVal(k, JSON.parse(raw)); } catch (e) {} });
+  STATE_KEYS.forEach(k => {
+    const raw = cache.get(k); if (raw == null) return;
+    try { const v = normalizeVal(k, JSON.parse(raw)); if (v !== undefined) state[k] = v; } catch (e) {}
+  });
 }
 // grava uma chave: cache + Firestore; o render é agendado antes, pra UI responder na hora
 async function save(key, msg) {
@@ -970,32 +1013,46 @@ async function save(key, msg) {
  * outro dispositivo atualiza o state, refaz o cache e agenda UM render
  * (requestAnimationFrame junta várias mudanças seguidas num só).
  * ===================================================================== */
-let unsubscribe = null;
+let unsubscribe = null, reconectarTimer = 0;
 function subscribe() {
   if (!db || unsubscribe) return;
   ui.firstSnapshot = true;
   unsubscribe = db.collection(COLLECTION).onSnapshot(snap => {
+    const doServidor = !snap.metadata.fromCache;
     snap.docChanges().forEach(ch => {
       const key = ch.doc.id;
       if (!STATE_KEYS.includes(key)) return;
       if (ch.type === 'removed') { state[key] = clone(DEFAULTS[key]); return; }
       const raw = ch.doc.data().value;
       let val; try { val = normalizeVal(key, JSON.parse(raw)); } catch (e) { return; }
+      if (val === undefined) return;   // documento com forma errada: não encosta no estado
       // hasPendingWrites = eco da nossa própria gravação; não é novidade pra ninguém
       if (!ui.firstSnapshot && !ch.doc.metadata.hasPendingWrites) detectNotifications(key, state[key], val);
       state[key] = val;
       cache.set(key, raw);
     });
-    if (ui.firstSnapshot) { ui.firstSnapshot = false; ui.ready = true; flushQueue(); }
-    setOnline(!snap.metadata.fromCache);
+    /* A trava de notificação e o "pronto" só abrem no primeiro retorno DO
+     * SERVIDOR. Abrir no primeiro retorno qualquer era um problema real: quem
+     * abre o app sem sinal recebe primeiro um snapshot vindo do cache, vazio, e
+     * o snapshot verdadeiro logo depois chegava com tudo marcado como novo —
+     * uma enxurrada de avisos de uma vez. ui.ready também guarda as gravações
+     * automáticas (lembretes) até existir dado de servidor em mãos. */
+    if (doServidor) { ui.firstSnapshot = false; ui.ready = true; flushQueue(); }
+    setOnline(doServidor);
     scheduleRender();
   }, err => {
-    console.warn('onSnapshot falhou; usando cache', err);
-    loadFromCache(); ui.ready = true; setOnline(false); scheduleRender();
+    console.warn('onSnapshot falhou', err);
+    /* O Firestore encerra o ouvinte quando dá erro. Sem zerar a referência e
+     * tentar de novo, o app ficava o resto da sessão sem receber nada e mesmo
+     * assim continuava gravando por cima de dados que já não conhecia. */
+    unsubscribe = null; ui.ready = false; setOnline(false);
+    if (ui.firstSnapshot) loadFromCache();   // nunca chegou dado do servidor: cai pro cache
+    scheduleRender();
     if (err && err.code === 'permission-denied') toast('Sem permissão para ler os dados. Confira as regras do Firestore.', 'err');
+    clearTimeout(reconectarTimer); reconectarTimer = setTimeout(subscribe, 5000);
   });
 }
-function unsubscribeAll() { if (unsubscribe) { unsubscribe(); unsubscribe = null; } }
+function unsubscribeAll() { clearTimeout(reconectarTimer); if (unsubscribe) { unsubscribe(); unsubscribe = null; } }
 
 /* =====================================================================
  * 7. LOGIN POR PIN
@@ -1128,7 +1185,8 @@ function detectNotifications(key, prev, next) {
       const newMine = (ev.tasks || []).filter(t => !oldTasks.has(t.id) && t.who === my);
       if (newMine.length && author !== my) notify('✅ Nova tarefa atribuída', `${ev.title}: ${newMine.map(t => t.text || t.role).join(', ')}`);
       const oldC = new Set((old.comments || []).map(c => c.id));
-      (ev.comments || []).forEach(c => { if (!oldC.has(c.id) && c.by !== my && mentions(c.text, my)) notify(`💬 ${nameOf(c.by)} mencionou você`, c.text); });
+      // canSee: sem isso, uma menção dentro de evento privado avisava quem nem enxerga o evento
+      (ev.comments || []).forEach(c => { if (!oldC.has(c.id) && c.by !== my && mentions(c.text, my) && canSee(ev)) notify(`💬 ${nameOf(c.by)} mencionou você`, c.text); });
       if (ev.kind === 'reuniao' && mine && !involves(old, my) && author !== my) notify('📞 Convite de reunião', `${ev.title} — ${fmtWD(ev.date)} ${ev.start || ''}`);
     });
   }
@@ -1212,15 +1270,23 @@ function avatarSvg(key) {
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
 }
 function avatarImg(key, cls = 'avatar') { return `<img class="${cls}" src="${esc(photoOf(key))}" alt="" title="${esc(nameOf(key))}">`; }
+// mesma limpeza usada ao gerar as variáveis, senão os dois lados não se encontram
+const chaveCss = k => String(k).replace(/[^a-z0-9_-]/gi, '') || 'x';
 function colorVars(key) {
   if (key === 'todos') return '--bg:var(--todos);--fg:var(--todos-ink)';
-  return `--bg:var(--c-${key},#BBBBBB);--fg:var(--c-${key}-ink,#23262B)`;
+  const k = chaveCss(key);
+  return `--bg:var(--c-${k},#BBBBBB);--fg:var(--c-${k}-ink,#23262B)`;
 }
 function personChip(key) {
   return `<span class="person-chip ${key === 'todos' ? 'todos' : ''}" style="${colorVars(key)}">${key === 'todos' ? '★' : avatarImg(key, 'avatar xs')} ${esc(nameOf(key))}</span>`;
 }
+/* Quem está desativado não aparece na lista, mas se a tarefa já era dele o
+ * navegador escolhia o primeiro ativo e salvar reatribuía a tarefa em silêncio.
+ * Aqui a pessoa desativada continua no seletor enquanto for a escolhida. */
 function peopleOptions(selected, extra = '') {
-  return extra + people().map(k => `<option value="${k}" ${k === selected ? 'selected' : ''}>${esc(nameOf(k))}</option>`).join('');
+  const lista = people();
+  if (selected && !lista.includes(selected) && getEquipe()[selected]) lista.unshift(selected);
+  return extra + lista.map(k => `<option value="${esc(k)}" ${k === selected ? 'selected' : ''}>${esc(nameOf(k))}${people().includes(k) ? '' : ' (inativo)'}</option>`).join('');
 }
 
 // Quem está envolvido num evento: tarefas + participantes; senão o collab.
@@ -1234,6 +1300,10 @@ function eventPeople(ev) {
 const involves = (ev, key) => !!key && eventPeople(ev).includes(key);
 function canSee(ev) { if (!ev.private) return true; return isAdmin() || ev.createdBy === session.user || involves(ev, session.user); }
 function matchesSearch(ev) { const q = norm(ui.search.trim()); if (!q) return true; return [ev.title, ev.desc, ev.local].some(f => norm(f).includes(q)); }
+/* A busca e o filtro "só os meus" servem às GRADES. As listas de um dia
+ * específico precisam mostrar o dia inteiro, senão digitar na busca fazia o
+ * modal do dia anunciar "1 compromisso" havendo quatro. */
+function permittedEvents() { return (state.events || []).filter(ev => ev && ev.date && canSee(ev)); }
 function visibleEvents() { return (state.events || []).filter(ev => ev && ev.date && canSee(ev) && (!ui.onlyMine || involves(ev, session.user)) && matchesSearch(ev)); }
 function eventsOn(dateStr, list) { return (list || visibleEvents()).filter(ev => ev.date === dateStr).sort(sortEvents); }
 function sortEvents(a, b) {
@@ -1244,13 +1314,20 @@ function sortEvents(a, b) {
 }
 function eventOwner(ev) { const ps = eventPeople(ev); return ps.length === 1 ? ps[0] : 'todos'; }
 function eventStyle(ev) {
-  const c = state.customColors && state.customColors[ev.id];
+  // safeCor: a cor entra num atributo style, e sem validar dava pra sair dele
+  const c = safeCor(state.customColors && state.customColors[ev.id]);
   return c ? `--bg:${c};--fg:${inkFor(c)}` : colorVars(eventOwner(ev));
 }
 function eventDone(ev) { return (ev.tasks || []).length > 0 && ev.tasks.every(t => t.done); }
 function eventEnd(ev) {
   const d = parseYmd(ev.date);
-  if (ev.allDay || !ev.end) d.setHours(23, 59, 0, 0); else { const [h, m] = ev.end.split(':').map(Number); d.setHours(h, m || 0, 0, 0); }
+  if (ev.allDay || !ev.end) d.setHours(23, 59, 0, 0);
+  else {
+    // fim menor que início = vira a noite; sem isso o evento "terminava" antes
+    // de começar e desaparecia da lista de próximos compromissos
+    if (ev.start && ev.end < ev.start) d.setDate(d.getDate() + 1);
+    const [h, m] = ev.end.split(':').map(Number); d.setHours(h, m || 0, 0, 0);
+  }
   return d.getTime();
 }
 function findEvent(id) { return (state.events || []).find(e => e.id === id); }
@@ -1265,15 +1342,19 @@ function monthLoad(who, y, m) {
 }
 function replacePerson(ev, from, to) {
   (ev.tasks || []).forEach(t => { if (t.who === from) t.who = to; });
-  if (ev.participants) ev.participants = [...new Set(ev.participants.map(p => p === from ? to : p))];
+  // se os dois já participam, trocar um pelo outro removeria alguém da reunião
+  if (ev.participants && !(ev.participants.includes(from) && ev.participants.includes(to)))
+    ev.participants = [...new Set(ev.participants.map(p => p === from ? to : p))];
   if (ev.collab === from) ev.collab = to;
   ev.updatedAt = Date.now(); ev.updatedBy = session.user;
 }
 // folgas/férias: state.folgas = [{ id, who, tipo:'ferias'|'folga', start, end, periodo }]
 function offOn(dateStr) { return (state.folgas || []).filter(f => f.start <= dateStr && dateStr <= f.end); }
 function offFor(who, dateStr) { return offOn(dateStr).find(f => f.who === who); }
-function offLabel(f) { return f.tipo === 'ferias' ? '🏝️ férias' : f.periodo === 'integral' ? '🏖️ folga' : `🌗 folga (${f.periodo})`; }
-function birthdaysOn(dateStr) { const md = dateStr.slice(5); return Object.entries(state.birthdays || {}).filter(([k, v]) => v === md && getEquipe()[k]).map(([k]) => k); }
+// o texto vai parar em atributo title, então o período precisa sair escapado
+function offLabel(f) { return f.tipo === 'ferias' ? '🏝️ férias' : f.periodo === 'integral' ? '🏖️ folga' : `🌗 folga (${esc(f.periodo)})`; }
+// só de quem está na equipe ativa: quem saiu não deve mais puxar bolo e confete
+function birthdaysOn(dateStr) { const md = dateStr.slice(5); return Object.entries(state.birthdays || {}).filter(([k, v]) => v === md && people().includes(k)).map(([k]) => k); }
 function isRecipient(r, key) { return r.to === key || (r.to === 'todos' && person(key).role === 'admin'); }
 function reqLabel(r) { return { troca: 'Troca de dia', substituicao: 'Substituição', reuniao: 'Reunião' }[r.kind] || 'Solicitação'; }
 function logHistory(action, detail) {
@@ -1300,8 +1381,13 @@ function render() {
   repaintModals();
 }
 // --c-<chave> e --c-<chave>-ink pra cada pessoa: quem entra depois também nasce com cor
+/* A cor e a chave entravam cruas numa regra CSS. Uma cor como "red}*{display:none}"
+ * fechava a regra e escondia a página inteira, para todo mundo e a cada carregamento.
+ * Agora a cor passa pelo safeCor e a chave só aceita letras, números, - e _. */
 function applyTeamColors() {
-  const css = ':root{' + Object.entries(getEquipe()).map(([k, p]) => `--c-${k}:${p.cor};--c-${k}-ink:${inkFor(p.cor)};`).join('') + '}';
+  const css = ':root{' + Object.entries(getEquipe())
+    .map(([k, p]) => { const c = safeCor(p && p.cor) || '#BBBBBB'; return `--c-${chaveCss(k)}:${c};--c-${chaveCss(k)}-ink:${inkFor(c)};`; })
+    .join('') + '}';
   const tag = $('#team-colors'); if (tag.textContent !== css) tag.textContent = css;
 }
 function renderHeader() {
@@ -1339,7 +1425,7 @@ function renderSidebar() {
   $('#sb-team').innerHTML = people().map(k => {
     const s = dayStatusOf(k, t), off = offFor(k, t);
     const lbl = off ? offLabel(off) : s ? `${s.ico} ${s.label}` : '';
-    return `<div class="team-item" data-act="open-person" data-key="${k}">${avatarImg(k, 'avatar sm')}<span class="color-dot" style="background:var(--c-${k})"></span><span class="nm">${esc(nameOf(k))}</span><span class="st">${lbl}</span></div>`;
+    return `<div class="team-item" data-act="open-person" data-key="${k}">${avatarImg(k, 'avatar sm')}<span class="color-dot" style="background:var(--c-${chaveCss(k)})"></span><span class="nm">${esc(nameOf(k))}</span><span class="st">${lbl}</span></div>`;
   }).join('');
   const now = Date.now();
   const upc = visibleEvents().filter(ev => isLoad(ev) && eventEnd(ev) >= now).sort((a, b) => eventStart(a) - eventStart(b)).slice(0, 5);
@@ -1348,7 +1434,7 @@ function renderSidebar() {
     : '<div class="empty">Nada por vir.</div>';
   const y = ui.cursor.getFullYear(), m = ui.cursor.getMonth();
   const counts = people().map(k => [k, monthLoad(k, y, m)]); const max = Math.max(1, ...counts.map(c => c[1]));
-  $('#sb-summary').innerHTML = counts.map(([k, n]) => `<div class="summary-row"><span class="nm">${esc(nameOf(k))}</span><div class="bar" title="${esc(nameOf(k))}: ${n}"><i style="width:${Math.round(n / max * 100)}%;--bg:var(--c-${k})"></i></div><span class="n">${n}</span></div>`).join('')
+  $('#sb-summary').innerHTML = counts.map(([k, n]) => `<div class="summary-row"><span class="nm">${esc(nameOf(k))}</span><div class="bar" title="${esc(nameOf(k))}: ${n}"><i style="width:${Math.round(n / max * 100)}%;--bg:var(--c-${chaveCss(k)})"></i></div><span class="n">${n}</span></div>`).join('')
     + `<div class="hint">${capitalize(MONTHS[m])} · folgas e férias não contam.</div>`;
   const ks = (state.kudos || []).slice().sort((a, b) => b.at - a.at).slice(0, 5);
   $('#sb-kudos').innerHTML = ks.length
@@ -1373,7 +1459,11 @@ function renderView() {
   else c.innerHTML = renderTimeline(1) + renderDayExtras();
   const now = $('.tl-now', c), body = $('.tl-body', c);
   if (now && body) body.scrollTop = Math.max(0, now.offsetTop - 140);
-  else if (body) body.scrollTop = 2 * 48; // começa às 8h
+  else if (body) {
+    // abre nas 8h; a faixa pode começar antes das 6h se houver evento de madrugada
+    const tl = $('.tl', c), hIni = tl ? Number(tl.dataset.hini) || HOUR_START : HOUR_START;
+    body.scrollTop = Math.max(0, (8 - hIni) * 48);
+  }
   if (ui.view === 'month') ligarCubos($('.month-grid', c));
   else alinharColunas($('.tl', c));
 }
@@ -1536,27 +1626,41 @@ function evCard(ev) {
 function renderTimeline(cols) {
   const start = cols === 7 ? startOfWeek(ui.cursor) : new Date(ui.cursor.getFullYear(), ui.cursor.getMonth(), ui.cursor.getDate());
   const days = Array.from({ length: cols }, (_, i) => ymd(addDays(start, i)));
-  const t = todayYmd(), evs = visibleEvents(), H = HOUR_END - HOUR_START;
+  const t = todayYmd(), evs = visibleEvents();
+  /* A faixa padrão vai das 6h às 22h, que cobre o expediente. Mas um evento às
+   * 3h ou às 23h era achatado contra a borda e aparecia na hora errada — uma
+   * madrugada desenhada na linha das 6h. Aqui a faixa cresce só o necessário
+   * para caber o que existe no período mostrado. */
+  let hIni = HOUR_START, hFim = HOUR_END;
+  days.forEach(s => eventsOn(s, evs).forEach(ev => {
+    if (ev.allDay || !ev.start) return;
+    const a = minutesOf(ev.start), b = minutesOf(ev.end || ev.start);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return;   // horário estragado não derruba a grade toda
+    hIni = Math.min(hIni, Math.max(0, Math.floor(a / 60)));
+    hFim = Math.max(hFim, Math.min(24, Math.ceil(b / 60)));
+  }));
+  const H = hFim - hIni;
   const head = `<div class="tl-head"><div></div>${days.map(s => { const d = parseYmd(s), hol = isHoliday(s); return `<div class="${s === t ? 'today' : ''}" data-act="open-day" data-date="${s}">${WEEKDAYS[d.getDay()]}<span class="dnum">${d.getDate()}</span>${hol ? `<span class="hol">${esc(hol)}</span>` : ''}</div>`; }).join('')}</div>`;
   const allday = `<div class="tl-allday"><div>dia todo</div>${days.map(s => {
     const items = eventsOn(s, evs).filter(ev => ev.allDay || !ev.start), offs = offOn(s), bds = birthdaysOn(s), nota = minhaNota(s);
     return `<div data-act="open-day" data-date="${s}">${bds.map(k => `<span class="chip">🎂 ${esc(nameOf(k))}</span>`).join('')}${offs.map(f => `<span class="chip" style="${colorVars(f.who)}">${offLabel(f).split(' ')[0]} ${esc(nameOf(f.who))}</span>`).join('')}${nota ? `<span class="chip" ${safeCor(nota.cor) ? `style="--bg:${safeCor(nota.cor)};--fg:${inkFor(safeCor(nota.cor))}"` : ''} title="Sua nota: ${esc(nota.text)}">${esc(nota.icon || '📝')} nota</span>` : ''}${items.map(evCard).join('')}</div>`;
   }).join('')}</div>`;
-  const hours = Array.from({ length: H + 1 }, (_, i) => `<div>${pad2(HOUR_START + i)}:00</div>`).join('');
-  const now = new Date(), nowTop = ((now.getHours() * 60 + now.getMinutes()) - HOUR_START * 60) / 60;
+  const hours = Array.from({ length: H + 1 }, (_, i) => `<div>${pad2((hIni + i) % 24)}:00</div>`).join('');
+  const now = new Date(), nowTop = ((now.getHours() * 60 + now.getMinutes()) - hIni * 60) / 60;
   const body = `<div class="tl-body"><div class="tl-hours">${hours}</div>${days.map(s => {
     const placed = layoutTimed(eventsOn(s, evs).filter(ev => !(ev.allDay || !ev.start)));
     return `<div class="tl-col ${s === t ? 'today' : ''}" style="height:calc(var(--hour-h) * ${H + 1})" data-act="open-day" data-date="${s}">
       ${s === t && nowTop >= 0 && nowTop <= H + 1 ? `<div class="tl-now" style="top:calc(var(--hour-h) * ${nowTop.toFixed(3)})"></div>` : ''}
       ${placed.map(({ ev, col, ncol }) => {
-        const st = Math.max(0, (minutesOf(ev.start) - HOUR_START * 60) / 60);
-        const en = Math.min(H + 1, Math.max(st + 0.5, (minutesOf(ev.end || ev.start) - HOUR_START * 60) / 60));
+        const st = Math.max(0, (minutesOf(ev.start) - hIni * 60) / 60);
+        const en = Math.min(H + 1, Math.max(st + 0.5, (minutesOf(ev.end || ev.start) - hIni * 60) / 60));
+        if (!Number.isFinite(st) || !Number.isFinite(en)) return '';
         const w = 100 / ncol;
         return `<div class="tl-ev ${eventDone(ev) ? 'done' : ''}" style="${eventStyle(ev)};top:calc(var(--hour-h) * ${st.toFixed(3)});height:calc(var(--hour-h) * ${(en - st).toFixed(3)} - 3px);left:calc(${(col * w).toFixed(2)}% + 3px);width:calc(${w.toFixed(2)}% - 6px)" data-act="open-event" data-id="${ev.id}" title="${esc(ev.title)}"><span class="t">${ev.pinned ? '📌' : typeOf(ev).ico} ${ev.private ? '🔒' : ''}${esc(ev.title)}</span><span class="hh">${ev.start}${ev.end ? '–' + ev.end : ''} · ${eventPeople(ev).map(nameOf).join(', ')}</span></div>`;
       }).join('')}
     </div>`;
   }).join('')}</div>`;
-  return `<div class="tl" style="--cols:${cols}">${head}${allday}${body}</div>`;
+  return `<div class="tl" style="--cols:${cols}" data-hini="${hIni}">${head}${allday}${body}</div>`;
 }
 // eventos que se sobrepõem no horário ficam lado a lado, em colunas
 function layoutTimed(list) {
@@ -1574,12 +1678,12 @@ function layoutTimed(list) {
 function renderDayExtras() {
   const s = ymd(ui.cursor), my = session.user;
   const left = people().map(k => { const st = dayStatusOf(k, s), off = offFor(k, s); return `<div class="team-item" data-act="open-person" data-key="${k}">${avatarImg(k, 'avatar sm')}<span class="nm">${esc(nameOf(k))}</span><span class="st">${off ? offLabel(off) : st ? st.ico + ' ' + st.label : '—'}</span></div>`; }).join('');
-  const tasks = my ? eventsOn(s).flatMap(ev => (ev.tasks || []).filter(t => t.who === my).map(t => ({ ev, t }))) : [];
+  const tasks = my ? eventsOn(s, permittedEvents()).flatMap(ev => (ev.tasks || []).filter(t => t.who === my).map(t => ({ ev, t }))) : [];
   const right = tasks.length
     ? `<div class="task-list">${tasks.map(({ ev, t }) => `<label class="task-item ${t.done ? 'done' : ''}"><input type="checkbox" ${t.done ? 'checked' : ''} data-change="toggle-task" data-id="${ev.id}" data-task="${t.id}"><span class="tx">${esc(t.text || t.role || ev.title)} <span class="muted small">· ${esc(ev.title)}</span></span></label>`).join('')}</div>`
     : '<div class="empty">Sem tarefas suas neste dia.</div>';
   const note = my && state.notes[my] && state.notes[my][s];
-  return `<div class="day-extra"><div class="section"><h3>👥 Equipe no dia</h3>${left}</div><div class="section"><h3>✅ Minhas tarefas do dia</h3>${right}${note ? `<h3 class="mt">${note.icon || '📝'} Minha nota</h3><div class="note-view">${esc(note.text)}</div>` : ''}</div></div>`;
+  return `<div class="day-extra"><div class="section"><h3>👥 Equipe no dia</h3>${left}</div><div class="section"><h3>✅ Minhas tarefas do dia</h3>${right}${note ? `<h3 class="mt">${esc(note.icon || '📝')} Minha nota</h3><div class="note-view">${esc(note.text)}</div>` : ''}</div></div>`;
 }
 
 /* ---------- busca ---------- */
@@ -1772,7 +1876,7 @@ function paintDayModal(body, m) {
   paintVacationList(body); // listas dentro da aba férias também são vivas (não têm texto digitado)
 }
 function paintDayLive(el, m) {
-  const s = m.data.date, evs = eventsOn(s), offs = offOn(s);
+  const s = m.data.date, evs = eventsOn(s, permittedEvents()), offs = offOn(s);
   el.innerHTML = `<div class="section"><h3>📅 Compromissos do dia <span class="right muted">${evs.length}</span></h3>
     ${offs.length ? `<div class="row mb">${offs.map(f => `<span class="person-chip" style="${colorVars(f.who)}">${offLabel(f)} · ${esc(nameOf(f.who))}</span>`).join('')}</div>` : ''}
     ${evs.length ? `<div class="list-ev">${evs.map(ev => `<div class="item" style="${eventStyle(ev)}" data-act="open-event" data-id="${ev.id}"><span>${ev.pinned ? '📌' : typeOf(ev).ico}</span><span class="t">${ev.private ? '🔒 ' : ''}${esc(ev.title)}</span><span class="hh">${ev.allDay || !ev.start ? 'dia todo' : ev.start + (ev.end ? '–' + ev.end : '')}</span><span class="small">${eventPeople(ev).map(nameOf).join(', ')}</span>${isAdmin() ? `<button class="btn btn-xs" data-act="edit-event" data-id="${ev.id}" title="Editar">✏️</button><button class="btn btn-xs btn-danger" data-act="delete-event" data-id="${ev.id}" title="Excluir">🗑️</button>` : ''}</div>`).join('')}</div>` : '<div class="empty">Nenhum compromisso neste dia.</div>'}
@@ -1931,10 +2035,13 @@ SUB['save-event'] = async form => {
     Object.assign(ev, base, { updatedAt: Date.now(), updatedBy: session.user });
     if (useColor) state.customColors[ev.id] = color; else delete state.customColors[ev.id];
     save('customColors');
-    await save('events', 'Evento atualizado ✓'); logHistory('editou', `evento "${title}" em ${fmtDMY(date)}`);
+    await save('events', 'Evento atualizado ✓'); logHistory('editou', base.private ? `um evento privado em ${fmtDMY(date)}` : `evento "${title}" em ${fmtDMY(date)}`);
   } else {
-    const recur = E.recur.value, count = Math.min(60, Math.max(1, Number(E.count.value) || 1));
-    const dates = recur === 'none' ? [date] : expandRecurrence(date, recur, Number(E.interval.value) || 1, E.unit.value, count);
+    const recur = E.recur.value, count = Math.min(60, Math.max(1, Math.floor(Number(E.count.value)) || 1));
+    // o formulário é novalidate, então o max=90 do campo não vale: limita aqui
+    const intervalo = Math.min(90, Math.max(1, Math.floor(Number(E.interval.value)) || 1));
+    const dates = (recur === 'none' ? [date] : expandRecurrence(date, recur, intervalo, E.unit.value, count))
+      .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));   // descarta data inválida vinda de intervalo absurdo
     const seriesId = dates.length > 1 ? uid() : null;
     dates.forEach(dt => {
       const id = uid();
@@ -1943,7 +2050,7 @@ SUB['save-event'] = async form => {
     });
     if (useColor) save('customColors');
     await save('events', dates.length > 1 ? `${dates.length} eventos criados ✓` : 'Evento criado ✓');
-    logHistory('criou', `evento "${title}" em ${fmtDMY(date)}${dates.length > 1 ? ` (série de ${dates.length})` : ''}`);
+    logHistory('criou', base.private ? `um evento privado em ${fmtDMY(date)}` : `evento "${title}" em ${fmtDMY(date)}${dates.length > 1 ? ` (série de ${dates.length})` : ''}`);
   }
   if (m) m.data.editId = null;
   resetEventForm(form);
@@ -2144,9 +2251,9 @@ function viewerDayPanel(s) {
   const my = session.user, note = (state.notes[my] || {})[s] || { text: '', icon: '📝', cor: '' };
   const cor = note.cor || '';
   const naLista = NOTE_COLORS.some(c => c.cor && c.cor.toLowerCase() === cor.toLowerCase());
-  return `<div class="section"><h3>${note.icon} Minha nota do dia</h3>
+  return `<div class="section"><h3>${esc(note.icon)} Minha nota do dia</h3>
     <form data-submit="save-note" autocomplete="off">
-      <div class="icon-pick mb">${NOTE_ICONS.map(i => `<button type="button" class="${note.icon === i ? 'on' : ''}" data-act="note-icon" data-icon="${i}">${i}</button>`).join('')}<input type="hidden" name="icon" value="${note.icon}"></div>
+      <div class="icon-pick mb">${NOTE_ICONS.map(i => `<button type="button" class="${note.icon === i ? 'on' : ''}" data-act="note-icon" data-icon="${i}">${i}</button>`).join('')}<input type="hidden" name="icon" value="${esc(note.icon)}"></div>
       <label class="field"><span style="font-size:11px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.05em">Cor do dia no calendário</span></label>
       <div class="color-pick mb">${NOTE_COLORS.map(c => `<button type="button" class="${(cor || '') === c.cor ? 'on' : ''} ${c.cor ? '' : 'nenhuma'}" style="${c.cor ? `--sw:${c.cor}` : ''}" data-act="note-color" data-cor="${c.cor}" title="${esc(c.nome)}"></button>`).join('')}
         <label class="outra" title="Outra cor"><input type="color" value="${esc(cor || '#F2B01E')}" data-change="note-color-livre"><span>outra</span></label>
@@ -2176,7 +2283,9 @@ SUB['save-note'] = async form => {
   const m = getModal('day'); if (!m) return; const s = m.data.date, my = session.user;
   state.notes[my] = state.notes[my] || {};
   const text = form.elements.text.value.trim();
-  if (text) state.notes[my][s] = { text, icon: form.elements.icon.value, cor: form.elements.cor.value || '', at: Date.now() };
+  // só ícone da lista: assim nada estranho volta pelo campo oculto
+  const ico = NOTE_ICONS.includes(form.elements.icon.value) ? form.elements.icon.value : NOTE_ICONS[0];
+  if (text) state.notes[my][s] = { text, icon: ico, cor: safeCor(form.elements.cor.value), at: Date.now() };
   else delete state.notes[my][s];
   await save('notes', 'Nota salva ✓');
   const st = $('#dm-static', m.body); if (st) st.innerHTML = viewerDayPanel(s);
@@ -2260,7 +2369,12 @@ ACT.rsvp = async el => {
 ACT.reminder = async el => {
   const min = Number(el.dataset.min);
   state.reminders = (state.reminders || []).filter(r => !(r.eventId === el.dataset.id && r.who === session.user));
-  if (min) state.reminders.push({ id: uid(), eventId: el.dataset.id, who: session.user, minutes: min, firedAt: null });
+  if (min) {
+    const ev = findEvent(el.dataset.id);
+    const venceu = ev && Date.now() > eventStart(ev).getTime() - min * 60e3;
+    state.reminders.push({ id: uid(), eventId: el.dataset.id, who: session.user, minutes: min, firedAt: venceu ? Date.now() : null });
+    if (venceu) toast('Esse horário já passou — fica registrado, mas não vai tocar', '');
+  }
   await save('reminders', min ? 'Lembrete definido ✓' : 'Lembrete removido');
 };
 ACT.mention = el => { const ta = $('#ec-comment'); if (!ta) return; ta.value = (ta.value ? ta.value.replace(/\s*$/, ' ') : '') + '@' + el.dataset.name + ' '; ta.focus(); };
@@ -2342,6 +2456,10 @@ ACT['req-cancel'] = async el => { state.requests = state.requests.filter(r => r.
 ACT['req-answer'] = async el => {
   const r = state.requests.find(x => x.id === el.dataset.id); if (!r || r.status !== 'pendente') return;
   const ok = el.dataset.ok === '1', my = session.user;
+  // a tela já só mostra os botões para quem pode responder; aqui a regra fica no código
+  if (!isAdmin() && !isRecipient(r, my)) return toast('Esse pedido não é seu para responder', 'err');
+  // aceitar substituição de um evento que já não existe dizia "aceita" sem fazer nada
+  if (ok && r.kind === 'substituicao' && !findEvent(r.eventId)) return toast('O evento não existe mais — recuse este pedido', 'err');
   if (ok) {
     if (r.kind === 'troca') {
       state.events.forEach(ev => {
@@ -2367,24 +2485,43 @@ ACT['req-answer'] = async el => {
  * 16. MENSAGENS DIRETAS — abrir a conversa marca como lidas as recebidas
  * ===================================================================== */
 ACT.messages = el => { if (!session.user) return showLogin(); openMessages(el.dataset.with || null); };
+/* A coluna de conversas vinha só da equipe ativa. Se alguém foi desativado com
+ * uma mensagem não lida pendente, o badge vermelho ficava para sempre, porque
+ * não havia como abrir aquela conversa. Aqui entra também quem já trocou
+ * mensagem com você, ativo ou não. */
+function pessoasDaConversa() {
+  const my = session.user;
+  const comHistorico = (state.messages || []).flatMap(m => [m.from, m.to]).filter(k => k && k !== my);
+  return [...new Set([...people().filter(k => k !== my), ...comHistorico])];
+}
 function openMessages(withKey) {
-  const my = session.user, others = people().filter(k => k !== my);
+  const my = session.user, others = pessoasDaConversa();
   const w = withKey || others.find(k => (state.messages || []).some(m => m.to === my && m.from === k && !m.read)) || others[0];
   openModal({ id: 'messages', title: '💬 Mensagens', wide: true, live: true, data: { with: w }, paint: paintMessages });
+  marcarLidas(w);
+}
+/* Marcar como lida grava a lista inteira de mensagens, então só pode acontecer
+ * quando a pessoa ABRE a conversa — nunca dentro do desenho. O modal é vivo e
+ * se redesenha a cada dado que chega: marcar ali fazia o app regravar a lista
+ * a cada mensagem recebida, e duas mensagens seguidas do colega viravam uma,
+ * porque a confirmação de leitura da primeira subia sem a segunda. */
+function marcarLidas(peer) {
+  const my = session.user; if (!my || !peer) return;
+  let mudou = false;
+  (state.messages || []).forEach(x => { if (x.to === my && x.from === peer && !x.read) { x.read = true; mudou = true; } });
+  if (mudou) save('messages');
 }
 function paintMessages(body, m) {
   const my = session.user, w = m.data.with, msgs = state.messages || [];
   if (!w) { body.innerHTML = '<div class="empty">Não há mais ninguém na equipe pra conversar.</div>'; return; }
   const draft = $('#msg-text', body) ? $('#msg-text', body).value : '';
   const thread = msgs.filter(x => (x.from === my && x.to === w) || (x.from === w && x.to === my)).sort((a, b) => a.at - b.at);
-  let changed = false; thread.forEach(x => { if (x.to === my && !x.read) { x.read = true; changed = true; } });
-  if (changed) save('messages');
-  body.innerHTML = `<div class="msg-layout"><div class="msg-people">${people().filter(k => k !== my).map(k => { const n = msgs.filter(x => x.from === k && x.to === my && !x.read).length; return `<div class="team-item ${k === w ? 'on' : ''}" data-act="msg-with" data-key="${k}">${avatarImg(k, 'avatar sm')}<span class="nm">${esc(nameOf(k))}</span>${n ? `<span class="badge" style="position:static">${n}</span>` : ''}</div>`; }).join('')}</div>
+  body.innerHTML = `<div class="msg-layout"><div class="msg-people">${pessoasDaConversa().map(k => { const n = msgs.filter(x => x.from === k && x.to === my && !x.read).length; return `<div class="team-item ${k === w ? 'on' : ''}" data-act="msg-with" data-key="${k}">${avatarImg(k, 'avatar sm')}<span class="nm">${esc(nameOf(k))}</span>${n ? `<span class="badge" style="position:static">${n}</span>` : ''}</div>`; }).join('')}</div>
     <div class="msg-thread"><div class="msg-scroll" id="msg-scroll">${thread.length ? thread.map(x => `<div class="bubble ${x.from === my ? 'me' : ''}">${richText(x.text)}<div class="meta">${fmtWhen(x.at)}${x.from === my && x.read ? ' · lida' : ''}</div></div>`).join('') : `<div class="empty">Comece a conversa com ${esc(nameOf(w))}.</div>`}</div>
     <form class="msg-input" data-submit="send-message" data-to="${w}" autocomplete="off"><input class="input" id="msg-text" name="text" maxlength="500" placeholder="Mensagem para ${esc(nameOf(w))}…" value="${esc(draft)}"><button class="btn btn-primary" type="submit">Enviar</button></form></div></div>`;
   const sc = $('#msg-scroll', body); if (sc) sc.scrollTop = sc.scrollHeight;
 }
-ACT['msg-with'] = el => { const m = getModal('messages'); if (!m) return; m.data.with = el.dataset.key; m.paint(m.body, m); };
+ACT['msg-with'] = el => { const m = getModal('messages'); if (!m) return; m.data.with = el.dataset.key; m.paint(m.body, m); marcarLidas(el.dataset.key); };
 SUB['send-message'] = async form => {
   const text = form.elements.text.value.trim(); if (!text) return;
   state.messages = state.messages || [];
@@ -2397,11 +2534,25 @@ SUB['send-message'] = async form => {
 /* =====================================================================
  * 17. ELOGIOS (kudos) — mural na sidebar; badge até a pessoa abrir
  * ===================================================================== */
-ACT.kudos = () => { if (!session.user) return showLogin(); openModal({ id: 'kudos', title: '🌟 Elogios', live: true, paint: paintKudos }); };
+ACT.kudos = () => {
+  if (!session.user) return showLogin();
+  openModal({ id: 'kudos', title: '🌟 Elogios', live: true, paint: paintKudos });
+  marcarElogiosVistos();
+};
+// mesma razão das mensagens: marcar "visto" grava o mural inteiro, então acontece
+// ao abrir, e não a cada redesenho disparado por um elogio novo de outra pessoa
+function marcarElogiosVistos() {
+  const my = session.user; if (!my) return;
+  let mudou = false;
+  (state.kudos || []).forEach(k => {
+    if (k.to !== my) return;
+    k.seenBy = k.seenBy || [];
+    if (!k.seenBy.includes(my)) { k.seenBy.push(my); mudou = true; }
+  });
+  if (mudou) save('kudos');
+}
 function paintKudos(body) {
   const my = session.user, ks = (state.kudos || []).slice().sort((a, b) => b.at - a.at);
-  let changed = false; ks.forEach(k => { if (k.to === my) { k.seenBy = k.seenBy || []; if (!k.seenBy.includes(my)) { k.seenBy.push(my); changed = true; } } });
-  if (changed) save('kudos');
   const draft = $('#kudo-text', body) ? $('#kudo-text', body).value : '';
   body.innerHTML = `<form class="section" data-submit="send-kudo" autocomplete="off"><h3>Mandar um elogio</h3><div class="grid2"><div class="field"><label>Para</label><select name="to">${people().filter(k => k !== my).map(k => `<option value="${k}">${esc(nameOf(k))}</option>`).join('')}</select></div><div class="field"><label>Elogio</label><input class="input" id="kudo-text" name="text" maxlength="200" required placeholder="Ex.: mandou muito bem na rota de ontem!" value="${esc(draft)}"></div></div><button class="btn btn-primary" type="submit">🌟 Enviar elogio</button></form>
     <div class="section"><h3>Mural</h3>${ks.length ? ks.slice(0, 50).map(k => `<div class="kudo">${avatarImg(k.to, 'avatar xs')} <b>${esc(nameOf(k.to))}</b> — ${esc(k.text)}<div class="meta">de ${esc(nameOf(k.from))} · ${fmtWhen(k.at)}</div></div>`).join('') : '<div class="empty">Ninguém elogiou ainda.</div>'}</div>`;
@@ -2425,7 +2576,7 @@ function paintMyDay(body, m) {
   const pr = ((state.priorities[my] || {})[s]) || ['', '', ''];
   const blocks = (((state.blocks[my] || {})[s]) || []).slice().sort((a, b) => a.start.localeCompare(b.start));
   const focus = state.userPriorities[my] || [];
-  const evs = eventsOn(s).filter(ev => involves(ev, my));
+  const evs = eventsOn(s, permittedEvents()).filter(ev => involves(ev, my));
   body.innerHTML = `<div class="row mb"><button class="btn btn-sm" data-act="myday-shift" data-n="-1">←</button><b class="serif" style="font-size:16px">${fmtLong(parseYmd(s))}</b><button class="btn btn-sm" data-act="myday-shift" data-n="1">→</button>${s !== todayYmd() ? '<button class="btn btn-sm" data-act="myday-shift" data-n="0">hoje</button>' : ''}</div>
     <form class="section" data-submit="save-priorities" autocomplete="off"><h3>🎯 3 prioridades do dia</h3>${[0, 1, 2].map(i => `<input class="input mb" name="p${i}" maxlength="100" placeholder="Prioridade ${i + 1}" value="${esc(pr[i] || '')}">`).join('')}<button class="btn btn-primary btn-sm" type="submit">Salvar prioridades</button></form>
     <div class="section"><h3>⏱️ Blocos de tempo reservados</h3>${blocks.length ? blocks.map(b => `<div class="block-item"><b>${esc(b.start)}–${esc(b.end)}</b><span class="flex1">${esc(b.label)}</span><button class="btn btn-xs" data-act="block-remove" data-id="${b.id}">✕</button></div>`).join('') : '<div class="empty">Nenhum bloco reservado.</div>'}
@@ -2508,7 +2659,7 @@ function openTeamStatus(focusKey) {
   openModal({ id: 'teamstatus', title: '👥 Equipe hoje', sub: fmtLong(new Date()), live: true, paint: body => {
     const t = todayYmd();
     body.innerHTML = people().map(k => {
-      const st = dayStatusOf(k, t), off = offFor(k, t), evs = eventsOn(t).filter(ev => involves(ev, k)), nx = evs.filter(ev => eventEnd(ev) >= Date.now())[0], p = person(k);
+      const st = dayStatusOf(k, t), off = offFor(k, t), evs = eventsOn(t, permittedEvents()).filter(ev => involves(ev, k)), nx = evs.filter(ev => eventEnd(ev) >= Date.now())[0], p = person(k);
       return `<div class="section" style="${k === focusKey ? 'box-shadow:var(--shadow)' : ''}"><div class="row">${avatarImg(k, 'avatar lg')}<div class="flex1"><div class="serif" style="font-size:20px;font-weight:600">${esc(p.nome)} ${p.role === 'admin' ? '<span class="role-tag">gestor</span>' : ''}</div><div class="muted small">📍 ${esc(p.cidade || 'sem cidade')}${state.birthdays[k] ? ' · 🎂 ' + state.birthdays[k].split('-').reverse().join('/') : ''}</div></div><div style="text-align:right"><div style="font-size:22px">${off ? offLabel(off).split(' ')[0] : st ? st.ico : '❔'}</div><div class="small"><b>${off ? offLabel(off).replace(/^\S+ /, '') : st ? st.label : 'sem status'}</b></div></div></div>
         <div class="row mt small"><span>📅 ${evs.length} compromisso(s) hoje</span>${nx ? `<span>· próximo: <b>${esc(nx.title)}</b> ${nx.start || ''}</span>` : ''}${session.user && k !== session.user ? `<button class="btn btn-xs right" data-act="messages" data-with="${k}">💬 mensagem</button>` : ''}</div></div>`;
     }).join('');
@@ -2604,7 +2755,7 @@ CHG['pref-festivo'] = el => { ui.festivo = el.checked; lsSet('lg_festivo', el.ch
 CHG['pref-weekstart'] = el => { ui.weekStart = Number(el.value); lsSet('lg_weekStart', el.value); render(); };
 ACT['notif-ask'] = () => { Notification.requestPermission().then(() => { const m = getModal('prefs'); if (m) m.paint(m.body, m); }); };
 ACT['notif-test'] = () => notify('🔔 Teste', 'As notificações estão funcionando.');
-ACT['clear-cache'] = () => { if (!confirm('Limpar o cache local? Os dados no Firestore continuam intactos.')) return; STATE_KEYS.forEach(k => { try { localStorage.removeItem('lg_data_' + k); } catch (e) {} }); toast('Cache limpo — recarregue a página'); };
+ACT['clear-cache'] = () => { if (!confirm('Limpar o cache local? Os dados no Firestore continuam intactos.')) return; STATE_KEYS.forEach(k => { try { localStorage.removeItem(CACHE_PREFIX + k); } catch (e) {} }); toast('Cache limpo — recarregue a página'); };
 SUB['change-pin'] = async form => {
   const E = form.elements; if (!/^\d{4}$/.test(E.new.value)) return toast('O novo PIN precisa ter 4 dígitos', 'err');
   try {
@@ -2650,11 +2801,12 @@ ACT['geo-off'] = () => { ui.geo = null; lsSet('lg_geo_negada', '1'); loadWeather
 
 /* ---------- backup JSON / restaurar / imprimir ---------- */
 ACT.backup = () => openModal({ id: 'backup', title: '💾 Backup', narrow: true, live: false, paint: body => {
-  body.innerHTML = `<div class="section"><h3>Exportar</h3><div class="small mb">Baixa um JSON com tudo: eventos, equipe, mensagens, diário…</div><button class="btn btn-primary btn-sm" data-act="export-json">⬇️ Baixar backup JSON</button></div>
+  body.innerHTML = `${isAdmin() ? `<div class="section"><h3>Exportar</h3><div class="small mb">Baixa um JSON com tudo: eventos, equipe, mensagens, diário…</div><button class="btn btn-primary btn-sm" data-act="export-json">⬇️ Baixar backup JSON</button></div>` : '<div class="section"><h3>Exportar</h3><div class="hint">O backup completo é do gestor: ele leva o diário, as mensagens e os eventos privados de todo mundo.</div></div>'}
     ${isAdmin() ? `<div class="section"><h3>Restaurar</h3><div class="small mb">Substitui os dados atuais pelos do arquivo. Faça um backup antes.</div><label class="btn btn-sm" style="cursor:pointer">⬆️ Escolher arquivo<input type="file" accept="application/json,.json" hidden data-change="import-json"></label></div>` : ''}
     <div class="section"><h3>Imprimir</h3><div class="small mb">Gera a vista atual em PDF pelo diálogo de impressão do navegador.</div><button class="btn btn-sm" data-act="print">🖨️ Imprimir / PDF</button></div>`;
 } });
 ACT['export-json'] = () => {
+  if (!isAdmin()) return toast('Só o gestor pode baixar o backup completo', 'err');
   const data = { app: 'calendario-logistica', version: APP_VERSION, exportedAt: new Date().toISOString(), by: session.user, state: Object.fromEntries(STATE_KEYS.map(k => [k, state[k]])) };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `backup-logistica-${todayYmd()}.json`; a.click();
@@ -2690,7 +2842,7 @@ function showLogin() {
         <div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button class="btn" data-act="pin-key" data-k="${n}">${n}</button>`).join('')}<button class="btn" data-act="pin-key" data-k="del">⌫</button><button class="btn" data-act="pin-key" data-k="0">0</button><button class="btn btn-primary" data-act="pin-key" data-k="ok">→</button></div>
         <div class="login-msg ${HAS_FIREBASE ? '' : 'err'}" id="login-msg">${HAS_FIREBASE ? '' : 'O Firebase não carregou. Verifique a internet.'}</div>
         <div id="setup-wrap" class="mt"></div>
-        ${lsGet('lg_lastUser', '') && !HAS_FIREBASE ? '<button class="btn btn-sm mt" data-act="offline-view">Ver dados salvos (somente leitura)</button>' : ''}`}
+        `}
     </div>`;
   if (!DEMO && db) checkSetupNeeded();
   setTimeout(() => { const i = $('#pin-input'); if (i) i.focus(); }, 50);
@@ -2748,19 +2900,25 @@ SUB['setup-accounts'] = async form => {
   catch (e) { toast('Erro: ' + friendlyAuthError(e), 'err'); btn.disabled = false; btn.textContent = 'Criar contas e entrar'; }
 };
 ACT['demo-login'] = el => startSession(el.dataset.key);
-ACT['offline-view'] = () => { const k = lsGet('lg_lastUser', ''); if (k) startSession(k); };
+
 
 /* =====================================================================
  * 24. LEMBRETES — checados a cada 30 s; firedAt sincroniza pra não tocar
  * em dois aparelhos. Se passou da hora com o app fechado, não toca atrasado.
  * ===================================================================== */
 function checkReminders() {
-  const my = session.user; if (!my) return; const now = Date.now(); let changed = false;
+  /* ui.ready só é verdadeiro depois que chegou dado do servidor. Sem essa
+   * guarda, o tique de 30s podia disparar logo ao abrir o app, ainda com o
+   * cache antigo em memória, marcar lembretes vencidos e gravar essa lista
+   * velha inteira por cima — apagando tudo o que a equipe tinha criado desde
+   * a última vez que aquele aparelho foi usado, sem ninguém clicar em nada. */
+  const my = session.user; if (!my || !ui.ready) return; const now = Date.now(); let changed = false;
   (state.reminders || []).forEach(r => {
     if (r.who !== my || r.firedAt) return; const ev = findEvent(r.eventId); if (!ev) return;
     const at = eventStart(ev).getTime() - r.minutes * 60e3;
-    if (now >= at && now < at + 30 * 60e3) { notify('🔔 Lembrete', `${ev.title} — ${ev.allDay || !ev.start ? fmtWD(ev.date) : ev.start}`); r.firedAt = now; changed = true; }
-    else if (now >= at + 30 * 60e3) { r.firedAt = now; changed = true; }
+    // janela curta: um lembrete tocando 25 minutos atrasado só atrapalha
+    if (now >= at && now < at + 5 * 60e3) { notify('🔔 Lembrete', `${ev.title} — ${ev.allDay || !ev.start ? fmtWD(ev.date) : ev.start}`); r.firedAt = now; changed = true; }
+    else if (now >= at + 5 * 60e3) { r.firedAt = now; changed = true; }
   });
   if (changed) save('reminders');
 }
@@ -2837,6 +2995,11 @@ function init() {
   if (DEMO) $('#demo-bar').hidden = false;
   tickClock(); setInterval(tickClock, 1000);
   setInterval(checkReminders, 30000);
+  /* A fila offline só era reenviada no evento 'online' do navegador e no
+   * primeiro snapshot. Uma conexão lenta, um portal de wi-fi ou uma falha
+   * momentânea do Firestore nunca disparam 'online', então a alteração ficava
+   * parada até a próxima abertura do app. Aqui ela é tentada de novo sozinha. */
+  setInterval(flushQueue, 30000);
   setInterval(() => { if (ui.view !== 'month' && !ui.modals.length) renderView(); }, 60000); // linha do "agora"
   const setTop = () => document.documentElement.style.setProperty('--top-h', ($('#topbar').offsetHeight + (DEMO ? $('#demo-bar').offsetHeight : 0)) + 'px');
   setTop(); window.addEventListener('resize', () => { setTop(); if (innerWidth > 900) toggleDrawer(false); alinharColunas($('.tl')); }); // drawer aberto não pode travar o scroll no desktop
