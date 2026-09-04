@@ -955,7 +955,7 @@ function getQueue() {
   try { const q = JSON.parse(lsGet('offlineQueue', '{}')); return (q && typeof q === 'object' && !Array.isArray(q)) ? q : {}; }
   catch (e) { return {}; }
 }
-function queueAdd(key, str) { const q = getQueue(); q[key] = str; lsSet('offlineQueue', JSON.stringify(q)); }
+function queueAdd(key, str) { const q = getQueue(); q[key] = { v: str, by: session.user || null }; lsSet('offlineQueue', JSON.stringify(q)); }
 function queueRemove(key) { const q = getQueue(); delete q[key]; lsSet('offlineQueue', JSON.stringify(q)); }
 let flushing = false;
 async function flushQueue() {
@@ -964,7 +964,16 @@ async function flushQueue() {
   flushing = true; setOnline('sync');
   let enviadas = 0;
   for (const key of chaves) {
-    try { await withTimeout(gravarDoc(key, q[key]), 8000); queueRemove(key); enviadas++; }
+    const item = q[key];                                        // formato antigo guardava so a string
+    const str = typeof item === 'string' ? item : item && item.v;
+    const autor = (typeof item === 'string' ? null : item && item.by) || session.user;
+    if (typeof str !== 'string') { queueRemove(key); continue; }
+    try {
+      // chave por pessoa nunca sobe inteira, nem pela fila: funde so a fatia do autor
+      if (CHAVES_POR_PESSOA[key]) { let o = {}; try { o = JSON.parse(str) || {}; } catch (e2) {} await withTimeout(salvarMinhaFatia(key, o, autor), 8000); }
+      else await withTimeout(gravarDoc(key, str), 8000);
+      queueRemove(key); enviadas++;
+    }
     catch (e) {
       /* Sem permissão nunca vai passar. Ficando na fila, essa chave barrava
        * todas as outras e o ciclo de 30 s tentava de novo pra sempre: a fila
@@ -1004,31 +1013,69 @@ function loadFromCache() {
  * objeto inteiro fazia a nota de quem salvasse primeiro sumir se o colega
  * salvasse na mesma hora — e às 7h todo mundo escreve a nota do dia ao mesmo
  * tempo. A transação relê o documento e troca só a fatia de quem está salvando,
- * então duas pessoas escrevendo coisas diferentes não se atropelam mais. */
-const CHAVES_POR_PESSOA = ['notes', 'diary', 'blocks', 'priorities', 'userPriorities'];
-async function salvarMinhaFatia(key) {
-  const my = session.user;
+ * então duas pessoas escrevendo coisas diferentes não se atropelam mais.
+ * O número é onde a pessoa fica: 1 = chave[pessoa]; 2 = statuses[dia][pessoa],
+ * que sofria da mesma colisão (todo mundo marca o status junto no começo do
+ * turno) e por ter a pessoa um nível abaixo precisa de fusão própria. */
+const CHAVES_POR_PESSOA = { notes: 1, diary: 1, blocks: 1, priorities: 1, userPriorities: 1, statuses: 2 };
+
+/* Funde a fatia da pessoa sobre o documento recem-lido. Nivel 1 e chave[pessoa].
+ * Nivel 2 e statuses[dia][pessoa], que guarda o dia por fora: por isso percorre
+ * os dias que ESTE aparelho conhece. Dia que ele nunca viu nao e dia apagado —
+ * mexer nele apagaria o status de quem marcou enquanto este estava desatualizado. */
+function fundirFatia(key, atual, local, my) {
+  if (CHAVES_POR_PESSOA[key] === 1) {
+    /* Fatia local ausente nunca quer dizer "apague a minha parte": nenhum fluxo
+     * do app remove a pessoa inteira, só dias soltos de dentro dela. Ausência
+     * aqui é cache vazio ou state antes do primeiro snapshot — apagar nesse caso
+     * levava junto o diário e as notas da própria pessoa, sem ela pedir nada. */
+    const minha = local ? local[my] : undefined;
+    if (minha !== undefined) atual[my] = minha;
+    return atual;
+  }
+  Object.keys(local || {}).forEach(dia => {
+    const meu = local[dia] ? local[dia][my] : undefined;
+    if (meu === undefined) { if (atual[dia]) delete atual[dia][my]; }
+    else { atual[dia] = atual[dia] || {}; atual[dia][my] = meu; }
+    if (atual[dia] && !Object.keys(atual[dia]).length) delete atual[dia];
+  });
+  return atual;
+}
+/* A transacao pode rodar MAIS DE UMA VEZ: o Firestore repete quando alguem grava
+ * no meio. Por isso nada aqui dentro encosta no state — o resultado so e
+ * publicado depois do commit, por quem chamou. */
+async function salvarMinhaFatia(key, local, my) {
   const ref = db.collection(COLLECTION).doc(key);
+  let publicado = null;
   await db.runTransaction(async tx => {
     const snap = await tx.get(ref);
     let atual = {};
     if (snap.exists) {
       try { const v = JSON.parse(snap.data().value); if (v && typeof v === 'object' && !Array.isArray(v)) atual = v; } catch (e) {}
     }
-    const minha = state[key] ? state[key][my] : undefined;
-    if (minha === undefined) delete atual[my]; else atual[my] = minha;
-    tx.set(ref, { value: JSON.stringify(atual), updatedAt: Date.now(), updatedBy: my });
-    state[key] = atual;
+    publicado = fundirFatia(key, atual, local, my);
+    tx.set(ref, { value: JSON.stringify(publicado), updatedAt: Date.now(), updatedBy: my });
   });
-  cache.set(key, JSON.stringify(state[key]));
+  return publicado;
 }
 // grava uma chave: cache + Firestore; o render é agendado antes, pra UI responder na hora
 async function save(key, msg) {
   scheduleRender();
   let ok;
-  if (db && session.user && CHAVES_POR_PESSOA.includes(key)) {
-    try { await withTimeout(salvarMinhaFatia(key), 8000); queueRemove(key); setOnline(true); ok = true; }
-    catch (e) { ok = await window.storage.set(key, state[key]); }   // transação falhou: caminho normal
+  if (db && session.user && CHAVES_POR_PESSOA[key]) {
+    const my = session.user, meuJson = JSON.stringify(state[key]);
+    try {
+      const publicado = await withTimeout(salvarMinhaFatia(key, state[key], my), 8000);
+      if (publicado) state[key] = publicado;
+      cache.set(key, JSON.stringify(state[key])); queueRemove(key); setOnline(true); ok = true;
+    } catch (e) {
+      /* Nao cai pro caminho normal: gravar o objeto inteiro e exatamente o que
+       * apagava a fatia do colega. Guarda o que este aparelho tem e funde
+       * depois, quando a fila subir. */
+      cache.set(key, meuJson); ok = false;
+      if (e && e.code === 'permission-denied') toast('Sem permissão para salvar. Entre de novo.', 'err');
+      else { queueAdd(key, meuJson); setOnline(navigator.onLine ? 'sync' : false); }
+    }
   } else ok = await window.storage.set(key, state[key]);
   if (msg) toast(ok ? msg : msg + ' (offline, na fila)', ok ? 'ok' : '');
   return ok;
@@ -2845,7 +2892,15 @@ CHG['import-json'] = el => {
       const j = JSON.parse(r.result), src = j.state || j, keys = STATE_KEYS.filter(k => k in src);
       if (!keys.length) throw new Error('arquivo sem dados reconhecíveis');
       if (!confirm(`Restaurar ${keys.length} chave(s): ${keys.join(', ')}? Isso substitui os dados atuais.`)) return;
-      for (const k of keys) { state[k] = normalizeVal(k, src[k]); await window.storage.set(k, state[k]); }
+      /* normalizeVal devolve undefined quando a chave vem torta no arquivo.
+       * Atribuir isso ao state deixava state.events undefined e o render logo
+       * abaixo quebrava o app inteiro num backup meio estragado. Pula a chave. */
+      let restauradas = 0;
+      for (const k of keys) {
+        const v = normalizeVal(k, src[k]); if (v === undefined) continue;
+        state[k] = v; await window.storage.set(k, state[k]); restauradas++;
+      }
+      if (!restauradas) throw new Error('nenhuma chave veio no formato esperado');
       render(); toast('Backup restaurado ✓', 'ok'); logHistory('restaurou', `backup de ${j.exportedAt || 'data desconhecida'}`);
     } catch (e) { toast('Backup inválido: ' + e.message, 'err'); }
   };
