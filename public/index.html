@@ -272,6 +272,10 @@ textarea{min-height:72px;resize:vertical;line-height:1.4}
 .ev.done{opacity:.55}
 .ev.done .t{text-decoration:line-through}
 .ev.pin{border-width:2px}
+/* nota pessoal: mesma faixa dos compromissos, borda tracejada pra não ser
+   confundida com algo que o gestor marcou */
+.ev.nota{border-style:dashed;background:var(--bg,var(--paper-2))}
+.ev.nota .t{font-weight:500}
 .more{font-size:11px;color:var(--muted);font-weight:700;padding:0 4px}
 
 /* ---------- linha do tempo (semana / dia) ---------- */
@@ -1670,6 +1674,15 @@ function notaMarcador(nota) {
   return `<span class="note-fold" ${cor ? `style="--nc:${cor}"` : ''} title="Sua nota: ${esc(nota.text)}">`
        + `<i class="note-fold__paper"></i><i class="note-fold__front">${esc(nota.icon || '📝')}</i></span>`;
 }
+/* Faixa da nota: o texto aparece no dia, no mesmo formato dos compromissos,
+ * para a pessoa ler sem abrir o dia. Sem data-act: o clique cai no dia, que é
+ * onde a nota se edita. Continua só para quem escreveu (vem de minhaNota). */
+function notaFaixa(nota) {
+  if (!nota) return '';
+  const cor = safeCor(nota.cor);
+  return `<div class="ev nota" ${cor ? `style="--bg:${cor};--fg:${inkFor(cor)}"` : ''} title="Sua nota: ${esc(nota.text)}">`
+       + `<span class="ico">${esc(nota.icon || '📝')}</span><span class="t">${esc(nota.text)}</span></div>`;
+}
 function renderMonth() {
   const y = ui.cursor.getFullYear(), m = ui.cursor.getMonth();
   const first = startOfWeek(new Date(y, m, 1)), last = new Date(y, m + 1, 0), t = todayYmd(), evs = visibleEvents();
@@ -1679,15 +1692,17 @@ function renderMonth() {
   const maxCards = 4;
   for (let i = 0; i < totalDays; i++) {
     const d = addDays(first, i), s = ymd(d), other = d.getMonth() !== m, hol = isHoliday(s);
-    const day = eventsOn(s, evs), bds = birthdaysOn(s), offs = offOn(s), shown = day.slice(0, maxCards);
-    // data-r/data-c: posição na grade, usada pela inclinação e pela onda dos cubos
     const nota = minhaNota(s), notaCor = nota ? safeCor(nota.cor) : '';
+    // a faixa da nota ocupa uma das vagas, pra o dia não esticar além dos outros
+    const cap = nota ? maxCards - 1 : maxCards;
+    const day = eventsOn(s, evs), bds = birthdaysOn(s), offs = offOn(s), shown = day.slice(0, cap);
+    // data-r/data-c: posição na grade, usada pela inclinação e pela onda dos cubos
     html += `<div class="cell ${other ? 'other' : ''} ${s === t ? 'today' : ''} ${hol ? 'hol' : ''} ${notaCor ? 'com-nota' : ''}" ${notaCor ? `style="--nc:${notaCor}"` : ''} data-act="open-day" data-date="${s}" data-r="${Math.floor(i / 7)}" data-c="${i % 7}">
       <i class="cube-flash"></i>
       <div class="daynum"><span class="n">${d.getDate()}</span>${hol ? `<span class="hol" title="${esc(hol)}">${esc(hol)}</span>` : ''}${notaMarcador(nota)}</div>
       ${bds.length || offs.length ? `<div class="chips">${bds.map(k => `<span class="chip" title="Aniversário de ${esc(nameOf(k))}">🎂 ${esc(nameOf(k))}</span>`).join('')}${offs.map(f => `<span class="chip" style="${colorVars(f.who)}" title="${esc(nameOf(f.who))}: ${offLabel(f)}">${offLabel(f).split(' ')[0]} ${esc(nameOf(f.who))}</span>`).join('')}</div>` : ''}
-      ${shown.map(evCard).join('')}
-      ${day.length > maxCards ? `<div class="more">+${day.length - maxCards} mais</div>` : ''}
+      ${notaFaixa(nota)}${shown.map(evCard).join('')}
+      ${day.length > cap ? `<div class="more">+${day.length - cap} mais</div>` : ''}
     </div>`;
   }
   return html + '</div>';
@@ -1716,7 +1731,7 @@ function renderTimeline(cols) {
   const head = `<div class="tl-head"><div></div>${days.map(s => { const d = parseYmd(s), hol = isHoliday(s); return `<div class="${s === t ? 'today' : ''}" data-act="open-day" data-date="${s}">${WEEKDAYS[d.getDay()]}<span class="dnum">${d.getDate()}</span>${hol ? `<span class="hol">${esc(hol)}</span>` : ''}</div>`; }).join('')}</div>`;
   const allday = `<div class="tl-allday"><div>dia todo</div>${days.map(s => {
     const items = eventsOn(s, evs).filter(ev => ev.allDay || !ev.start), offs = offOn(s), bds = birthdaysOn(s), nota = minhaNota(s);
-    return `<div data-act="open-day" data-date="${s}">${bds.map(k => `<span class="chip">🎂 ${esc(nameOf(k))}</span>`).join('')}${offs.map(f => `<span class="chip" style="${colorVars(f.who)}">${offLabel(f).split(' ')[0]} ${esc(nameOf(f.who))}</span>`).join('')}${nota ? `<span class="chip" ${safeCor(nota.cor) ? `style="--bg:${safeCor(nota.cor)};--fg:${inkFor(safeCor(nota.cor))}"` : ''} title="Sua nota: ${esc(nota.text)}">${esc(nota.icon || '📝')} nota</span>` : ''}${items.map(evCard).join('')}</div>`;
+    return `<div data-act="open-day" data-date="${s}">${bds.map(k => `<span class="chip">🎂 ${esc(nameOf(k))}</span>`).join('')}${offs.map(f => `<span class="chip" style="${colorVars(f.who)}">${offLabel(f).split(' ')[0]} ${esc(nameOf(f.who))}</span>`).join('')}${notaFaixa(nota)}${items.map(evCard).join('')}</div>`;
   }).join('')}</div>`;
   const hours = Array.from({ length: H + 1 }, (_, i) => `<div>${pad2((hIni + i) % 24)}:00</div>`).join('');
   const now = new Date(), nowTop = ((now.getHours() * 60 + now.getMinutes()) - hIni * 60) / 60;
